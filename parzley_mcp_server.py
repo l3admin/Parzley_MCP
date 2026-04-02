@@ -7,8 +7,13 @@ enabling Claude.ai and other MCP clients to interact with it.
 Run (stdio — for Claude Desktop):
     python parzley_mcp_server.py
 
-Run (SSE — for Claude.ai remote):
+Run (HTTP/Streamable — for Claude.ai remote, works through Cloudflare):
+    python parzley_mcp_server.py --transport http --port 8001
+    → endpoint: http://host:8001/mcp
+
+Run (SSE — legacy, requires Cloudflare proxy OFF):
     python parzley_mcp_server.py --transport sse --port 8001
+    → endpoint: http://host:8001/sse
 """
 
 import os
@@ -355,24 +360,31 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Parzley MCP Server")
     parser.add_argument(
         "--transport",
-        choices=["stdio", "sse"],
+        choices=["stdio", "sse", "http"],
         default="stdio",
-        help="Transport: 'stdio' (Claude Desktop, default) or 'sse' (Claude.ai remote)",
+        help=(
+            "Transport: 'stdio' (Claude Desktop, default), "
+            "'http' (streamable-http — works through Cloudflare, endpoint: /mcp), "
+            "'sse' (legacy SSE — requires Cloudflare proxy OFF, endpoint: /sse)"
+        ),
     )
     parser.add_argument(
         "--port",
         type=int,
         default=8001,
-        help="Port for SSE transport (default: 8001)",
+        help="Port for SSE/HTTP transport (default: 8001)",
     )
     parser.add_argument(
         "--host",
         default="0.0.0.0",
-        help="Host to bind for SSE transport (default: 0.0.0.0)",
+        help="Host to bind for SSE/HTTP transport (default: 0.0.0.0)",
     )
     args = parser.parse_args()
 
-    if args.transport == "sse":
+    if args.transport == "http":
+        print(f"Starting Parzley MCP Server (Streamable HTTP) on http://{args.host}:{args.port}/mcp")
+        mcp.run(transport="streamable-http", host=args.host, port=args.port)
+    elif args.transport == "sse":
         print(f"Starting Parzley MCP Server (SSE) on http://{args.host}:{args.port}/sse")
         mcp.run(transport="sse", host=args.host, port=args.port)
     else:
