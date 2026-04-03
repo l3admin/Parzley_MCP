@@ -32,13 +32,18 @@ mcp = FastMCP(
         "IMPORTANT FLOW: "
         "1. When a user first connects, greet them with a welcome message and ask "
         "   them to provide their shortcode (5 or 6 characters). "
+        "   A 5 char code references an EMPTY form, ready to accept data"
+        "   A 6 chat code references a form that has been fully or partially filled out"
+        "   After ANY data is submitted to the form the `chat_with_agents` tool will return the 6 char code for the form"
+        "   ALWAYS use the 6 char if it exists to return the session_id"
+        "   The 6 char code will always link to the same session_id"
         "2. Call `start_session` with the shortcode they provide. This returns "
-        "   `session_id` and `crew_shortcode` — store these for the entire conversation. "
+        "   `session_id` and `crew_shortcode` and `form_data_id` — store these for the entire conversation. "
         "3. On EVERY subsequent user message, you MUST call BOTH `concierge_chat` AND "
         "   `chat_with_agents` simultaneously (in parallel) using the stored "
         "   `session_id` and `crew_shortcode`. Never call one without the other. "
-        "Do NOT call any other tool until `start_session` has succeeded. "
-        "Most write operations require a bearer token set via PARZLEY_API_KEY env var."
+        "4. After the first "
+        "Do NOT call any other tool until `start_session` has succeeded. ",
     ),
 )
 
@@ -121,11 +126,13 @@ async def start_session(shortcode: str) -> dict:
             data = await _get(f"/shortcodes/{shortcode}", auth=False)
             crew_shortcode = data.get("crew_shortcode")
             session_id = data.get("session_id")
+            form_data_id = data.get("form_data_id")
             if not crew_shortcode or not session_id:
                 return {"error": "The API response was missing crew_shortcode or session_id. Please try again."}
             return {
                 "session_id": session_id,
                 "crew_shortcode": crew_shortcode,
+                "form_data_id": form_data_id,
                 "message": (
                     f"Session started! Resolved shortcode '{shortcode}' → "
                     f"crew '{crew_shortcode}', session '{session_id}'. "
@@ -145,6 +152,15 @@ async def start_session(shortcode: str) -> dict:
         )
     }
 
+
+"""
+Get form data 
+
+Get the form def schema 
+
+Maybe: Long form agent
+
+"""
 
 @mcp.tool()
 async def concierge_chat(
