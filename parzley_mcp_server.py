@@ -16,8 +16,8 @@ Run (SSE — legacy, requires Cloudflare proxy OFF):
     → endpoint: http://host:8001/sse
 """
 
-import os
 import uuid
+import asyncio
 import httpx
 from fastmcp import FastMCP
 import base64
@@ -34,18 +34,18 @@ mcp = FastMCP(
         1. When a user first connects, greet them with a welcome message and ask them to provide their shortcode (5 or 6 characters). 
            - A 5 char code references an EMPTY form, ready to accept data
            - A 6 char code references a form that has been fully or partially filled out
-           - After ANY data is submitted to the form the `chat_with_agents` tool will return the 6 char code for the form
+           - After ANY data is submitted to the form the `send_message` tool will return the 6 char code for the form
            - ALWAYS use the 6 char if it exists to return the session_id
            - The 6 char code will always link to the same session_id
         2. Call `start_session` with the shortcode they provide. This returns 
-           `session_id`, `crew_shortcode`, and `form_data_id` — store these for the entire conversation. 
+           `session_id`, `crew_shortcode`, and `form_id` — store these for the entire conversation. 
         3. The `form_id` is included in the `start_session` response for both shortcode types.
            Only call `get_form` if the user explicitly asks about the form structure, fields,
            or requirements (e.g. "how many fields?", "what does this form ask?").
            Only call `get_form_data_by_session` if the user asks what they have already filled in.
-        4. On EVERY subsequent user message, you MUST call BOTH `concierge_chat` AND 
-           `chat_with_agents` simultaneously (in parallel) using the stored 
-           `session_id` and `crew_shortcode`. Never call one without the other. 
+        4. On EVERY subsequent user message, call `send_message` — it automatically fires
+           both the concierge agent and the background parser/QA agents in parallel.
+           Use `concierge` from the response as the reply to show the user.
         Do NOT call any other tool until `start_session` has succeeded."""
 )
 
@@ -221,73 +221,64 @@ async def get_form(form_id: str) -> dict:
 
 
 @mcp.tool()
-async def concierge_chat(
+async def send_message(
     session_id: str,
     crew_shortcode: str,
-    message: str | None = None,
+    message: str,
+    form_data: dict | None = None,
     conversation_history: list | None = None,
     is_voice_mode: bool = False,
 ) -> dict:
     """
-    Chat with the Parzley AI form-filling concierge agent.
+    Send a user message to Parzley — fires concierge_chat AND chat_with_agents
+    simultaneously in a single call.
 
-    This is the PRIMARY tool for guiding a user through filling out a form.
-    The concierge agent asks questions, collects answers, and fills the form
-    on the user's behalf. Does NOT require authentication.
-
-    ⚠️  MUST be called simultaneously with `chat_with_agents` on EVERY user
-    message. Use the `session_id` and `crew_shortcode` returned by `start_session`.
+    This is the ONLY tool you need to call on every user message after
+    start_session. It runs both API calls in parallel and returns their
+    combined responses.
 
     Args:
         session_id: Session ID returned by start_session.
         crew_shortcode: Crew shortcode returned by start_session.
-        message: The user's message or answer to send to the agent.
-                 Omit on the first call to start the conversation.
-        conversation_history: Full prior conversation as a list of
-                              { role, content } dicts. Pass the full history
-                              each turn to maintain context.
+        message: The user's message or answer.
+        form_data: Current form data dict (field → value). Pass the latest
+                   known state so the agents have full context.
+        conversation_history: Full prior conversation as { role, content } dicts.
         is_voice_mode: Set True if the user is interacting via voice/TTS.
 
     Returns:
-        ConciergeAgentResponse with the agent's reply and any form state updates.
+        {
+          "concierge": <ConciergeAgentResponse>,   ← use this for the reply to the user
+          "agents":    <ParserAndQAResponse>        ← background form-data updates
+        }
     """
-    return await _post("/concierge-chat", {
+    concierge_payload = {
         "session_id": session_id,
         "crew_shortcode": crew_shortcode,
         "message": message,
         "conversation_history": conversation_history or [],
         "is_voice_mode": is_voice_mode,
-    }, auth=False)
-
-
-@mcp.tool()
-async def chat_with_agents(
-    session_id: str,
-    message: str,
-    conversation_history: list | None = None,
-) -> dict:
-    """
-    Send a message to the parallel Parzley agent pipeline (parser + QA agents).
-
-    Use this for multi-agent processing of user input — both a parsed form
-    update AND quality assurance in a single round-trip. Requires authentication.
-
-    ⚠️  MUST be called simultaneously with `concierge_chat` on EVERY user
-    message. Use the `session_id` returned by `start_session`.
-
-    Args:
-        session_id: Session ID returned by start_session.
-        message: The user's message or answer.
-        conversation_history: Prior conversation history as { role, content } dicts.
-
-    Returns:
-        Combined agent response with parsed data and QA feedback.
-    """
-    return await _post("/chat", {
+    }
+    agents_payload = {
         "session_id": session_id,
+        "crew_shortcode": crew_shortcode,
+        "form_data": form_data or {},
         "message": message,
+        "is_background_mode": True,
         "conversation_history": conversation_history or [],
-    })
+    }
+
+    concierge_result, agents_result = await asyncio.gather(
+        _post("/concierge-chat", concierge_payload, auth=False),
+        _post("/chat", agents_payload, auth=False),
+        return_exceptions=True,
+    )
+
+    return {
+        "concierge": concierge_result if not isinstance(concierge_result, Exception) else {"error": str(concierge_result)},
+        "agents":    agents_result    if not isinstance(agents_result,    Exception) else {"error": str(agents_result)},
+    }
+
 
 
 @mcp.tool()
