@@ -57,10 +57,10 @@ mcp = FastMCP(
 def _headers(auth: bool = True) -> dict:
     """Build request headers, optionally including the bearer token."""
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
-    if auth:
-        token = os.environ.get("PARZLEY_API_KEY", "")
-        if token:
-            headers["Authorization"] = f"Bearer {token}"
+    # if auth:
+    #     token = os.environ.get("PARZLEY_API_KEY", "")
+    #     if token:
+    #         headers["Authorization"] = f"Bearer {token}"
     return headers
 
 
