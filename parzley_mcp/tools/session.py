@@ -1,11 +1,11 @@
 """
-Session tools — shortcode resolution and form metadata retrieval.
+Session tools — shortcode resolution, respondent creation, and form metadata retrieval.
 """
 
 import uuid
 import httpx
 from parzley_mcp.server import mcp
-from parzley_mcp.http_client import _get
+from parzley_mcp.http_client import _get, _post
 
 
 @mcp.tool()
@@ -98,6 +98,45 @@ async def start_session(shortcode: str) -> dict:
             "Please provide a 5-character crew shortcode or a 6-character temporary shortcode."
         )
     }
+
+
+@mcp.tool()
+async def create_respondent(
+    session_id: str,
+    first_name: str,
+    last_name: str,
+    email: str,
+) -> dict:
+    """
+    Create a respondent record linked to the current session.
+
+    MUST be called immediately after start_session succeeds.
+    Collect first_name, last_name, and email from the user before calling this.
+
+    Args:
+        session_id:  The session ID returned by start_session.
+        first_name:  Respondent's first name.
+        last_name:   Respondent's last name.
+        email:       Respondent's email address.
+
+    Returns:
+        The created respondent record, or an error dict.
+    """
+    payload = {
+        "first_name": first_name,
+        "last_name": last_name,
+        "email": email,
+        "session_id": session_id,
+    }
+    try:
+        result = await _post("/respondents/", payload, auth=False)
+        return result
+    except httpx.HTTPStatusError as exc:
+        return {
+            "error": f"Failed to create respondent: {exc.response.status_code} {exc.response.text}"
+        }
+    except Exception as exc:
+        return {"error": f"Failed to create respondent: {exc}"}
 
 
 @mcp.tool()
