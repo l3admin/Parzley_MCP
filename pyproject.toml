@@ -1,10 +1,14 @@
 [project]
-name = "mcp-files"
+name = "parzley-mcp"
 version = "0.1.0"
-description = "Add your description here"
+description = "Parzley AI Form Filling Agent — MCP Server"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "httpx>=0.28.1",
     "fastmcp>=2.14.1",
 ]
+
+[project.scripts]
+parzley-mcp = "main:main"
+
