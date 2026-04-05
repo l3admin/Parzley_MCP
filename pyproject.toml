@@ -9,6 +9,4 @@ dependencies = [
     "fastmcp>=2.14.1",
 ]
 
-[project.scripts]
-parzley-mcp = "main:main"
 
