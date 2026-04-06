@@ -28,7 +28,7 @@ mcp = FastMCP(
         4. After the first `send_message` succeeds, ask the user for their:
            - First name
            - Last name
-           - Email address
+           - Email address 
            Then call `create_respondent` with session_id, first_name, last_name, and
            email. This registers the respondent and links them to the shortcode that was
            just created by `send_message`. Do NOT call `create_respondent` before the
