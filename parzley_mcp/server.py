@@ -10,17 +10,19 @@ mcp = FastMCP(
         You have access to Parzley — an AI-powered data collection (form filling) platform.
 
         IMPORTANT FLOW:
+
         1. *Connect to the correct schema or form and data*
         When a user begins a session, greet them with a firendly welcome message and ask them to provide their shortcode (5 or 6 characters).
            - A 5 char code references an EMPTY schema or form, ready to accept data
            - A 6 char code references a form that has been partially (or fully) filled out
            - After ANY data is submitted to an empty schema or form, the `send_message` tool will return a 6 char code for the form
            - ALWAYS use the 6 char if provide by the user to return the session_id, the 6 char code always links to the same session_id
-           - Without a shortcode you CAN NOT connect to a schema or form or collect / insert data.
+           - You MUST have a shortcode to connect to a schema or form or collect / insert data.
 
         2. *Start the Parzley session & retrieve required reference IDs*
         Call `start_session` with the shortcode the user provides. This returns `session_id`, `crew_shortcode`, and `form_id` — store these for the entire conversation.
-        
+           - Note that Users will NEVER know the `session_id`, `crew_shortcode`, or `form_id`, they will ONLY know the 5 or 6 char shortcode.
+
         3. *Initiate new sessions (using 5 char code): create unique 6 char code*
         If a 5 char code is provided by the user, after `start_session` succeeds, 
            - IMMEDIATELY call `send_message` with a friendly welcome/greeting as the message. This call is REQUIRED because it creates the unique user session and associated 6 char code. 
