@@ -24,14 +24,24 @@ async def _get(path: str, *, auth: bool = True) -> dict:
         return resp.json()
 
 
-async def _post(path: str, payload: dict, *, auth: bool = True) -> dict:
-    """Perform an authenticated (or public) POST request."""
+async def _post(path: str, payload: dict | None, *, auth: bool = True) -> dict:
+    """Perform an authenticated (or public) POST request.
+
+    ``payload=None`` sends a JSON body of ``null`` (e.g. when a field is optional on the API).
+    """
     async with httpx.AsyncClient(timeout=60) as client:
-        resp = await client.post(
-            f"{BASE_URL}{path}",
-            json=payload,
-            headers=_headers(auth),
-        )
+        if payload is None:
+            resp = await client.post(
+                f"{BASE_URL}{path}",
+                content=b"null",
+                headers=_headers(auth),
+            )
+        else:
+            resp = await client.post(
+                f"{BASE_URL}{path}",
+                json=payload,
+                headers=_headers(auth),
+            )
         resp.raise_for_status()
         return resp.json()
 

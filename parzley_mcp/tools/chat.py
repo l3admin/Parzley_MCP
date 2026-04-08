@@ -18,14 +18,15 @@ async def send_message(
 ) -> dict:
     """
     Send a user message to Parzley — fires concierge_chat AND chat_with_agents
-    simultaneously in a single call.
+    simultaneously in a single call. The concierge is the admin-configured agent
+    for the crew’s form; it runs the user-facing dialogue (use its reply for the user).
 
     This is the ONLY tool you need to call on every user message after
     start_session. It runs both API calls in parallel and returns their
     combined responses.
 
-    You MUST call BOTH `concierge_chat` AND `chat_with_agents` simultaneously
-    by using this single tool — never call them separately.
+    This tool is the only MCP surface for those behaviors — do not assume separate
+    tools exist for the underlying `/concierge-chat` and `/chat` HTTP endpoints.
 
     Args:
         session_id: Session ID returned by start_session.

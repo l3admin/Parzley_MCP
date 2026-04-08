@@ -13,7 +13,12 @@ async def start_session(shortcode: str) -> dict:
     """
     Start a new Parzley form-filling session. This MUST be the first tool called.
 
-    The user provides a shortcode:
+    Shortcodes (see server instructions for crews & concepts):
+      - **5 characters** — the crew’s form template (empty form); starts a new session (`session_id` is new).
+      - **6 characters** — an existing session’s handle: ties to saved form data and a stable
+        `session_id` (resume or continue partial/filled work).
+
+    Resolution:
       - 5-character shortcode → used directly as the crew_shortcode;
         a new session_id is generated automatically.
       - 6-character shortcode → resolved via the Parzley API to obtain
@@ -26,15 +31,16 @@ async def start_session(shortcode: str) -> dict:
         shortcode: The 5 or 6 character shortcode provided by the user.
 
     Returns:
-        A dict with session_id, crew_shortcode, and a welcome message —
-        or an error message if the shortcode is invalid.
+        On success: `session_id`, `crew_shortcode`, `form_id`, `form_name`, optional `mission_name`
+        (API display label for the crew/form — see server instructions), `message`, and for 6-char
+        flows optionally `form_data_id`. On failure: `error`.
     """
     shortcode = shortcode.strip()
 
     if len(shortcode) == 5:
-        # Direct crew shortcode — resolve mission to get form_id, then generate a fresh session
+        # 5-char shortcode = crew handle: resolve form template from Parzley API, then new session_id
         try:
-            mission = await _get(f"/missions/by-shortcode/{shortcode}", auth=False)
+            crew_template = await _get(f"/missions/by-shortcode/{shortcode}", auth=False)
         except httpx.HTTPStatusError as exc:
             return {
                 "error": f"Could not resolve shortcode '{shortcode}': "
@@ -43,18 +49,18 @@ async def start_session(shortcode: str) -> dict:
         except Exception as exc:
             return {"error": f"Failed to resolve shortcode '{shortcode}': {exc}"}
 
-        form_id = mission.get("form_definition_id")
+        form_id = crew_template.get("form_definition_id")
         session_id = str(uuid.uuid4())
         return {
             "session_id": session_id,
             "crew_shortcode": shortcode,
             "form_id": form_id,
-            "mission_name": mission.get("mission_name"),
-            "form_name": mission.get("form_name"),
+            "mission_name": crew_template.get("mission_name"),
+            "form_name": crew_template.get("form_name"),
             "message": (
                 f"Session started! Your crew shortcode is '{shortcode}' "
                 f"and your session ID is '{session_id}'. "
-                f"Form: '{mission.get('form_name')}' (id: {form_id}). "
+                f"Form: '{crew_template.get('form_name')}' (id: {form_id}). "
                 "You can now start filling out your form — just type your answers."
             ),
         }
@@ -110,8 +116,11 @@ async def create_respondent(
     """
     Create a respondent record linked to the current session.
 
-    MUST be called immediately after start_session succeeds.
-    Collect first_name, last_name, and email from the user before calling this.
+    Only for **new** sessions that began with a **5-character** shortcode. Skip this tool if the user
+    started with a **6-character** shortcode (respondent is already registered).
+
+    Call only after the first `send_message` has succeeded (see server instructions), then collect
+    first_name, last_name, and email from the user before calling this.
 
     Args:
         session_id:  The session ID returned by start_session.

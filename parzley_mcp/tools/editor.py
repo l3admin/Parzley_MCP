@@ -11,11 +11,11 @@ async def get_editor_suggestion(session_id: str) -> dict:
     """
     Retrieve the latest editor suggestion for a session.
 
-    After a concierge_chat turn, call this to get the structured document
+    After a `send_message` turn, call this to get the structured document
     output that represents the current state of the form being filled.
 
     Args:
-        session_id: The session ID used in concierge_chat or chat_with_agents.
+        session_id: The session ID from `start_session` (same as used in `send_message`).
 
     Returns:
         { status, text_output, type, session_id, _id, created_at, updated_at }
