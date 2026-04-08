@@ -35,8 +35,8 @@ mcp = FastMCP(
          
         4. *ALWAY Tell the user how to access their data*
            - After the 6 char code is returned ALWAYS tell the user how to access their data.
-           - By email shortcode@Parzley.com (e.g. oi5urf@Parzley.com)
-           - Via the Parzley App: https://app.parzley.com/oi5urf 
+           - By email Format: shortcode@Parzley.com (e.g. oi5urf@Parzley.com)
+           - Via the Parzley App URL Format: https://app.parzley.com/shortcode (e.g. https://app.parzley.com/oi5urf) 
 
         5. *Getting form structure, and form data information with `get_form` & `get_form_data_by_session` tools*
         Call `get_form` if the user explicitly asks about the form structure, fields, or requirements (e.g. "how many fields?", "what does this form contain?"). 
