@@ -6,10 +6,10 @@ from parzley_mcp.server import mcp
 from parzley_mcp.http_client import _post
 
 
-@mcp.tool(name="Submit Form Data")
+@mcp.tool()
 async def submit_form_data(shortcode: str, data: dict | None = None) -> dict:
     """
-    Final submission: locks the form, persists Parzley-held data, and runs downstream
+    Submit Form Data — final submission: locks the form, persists Parzley-held data, and runs downstream
     workflows. Irreversible — the form cannot be reopened or unsubmitted.
 
     Pass ``data`` only if the API needs extra display metadata; otherwise omit it or

@@ -93,7 +93,7 @@ mcp = FastMCP(
 
         OTHER TOOLS (on demand — not part of every turn):
 
-        - **Submit Form Data:** Final submission when the user is done; locks the form and triggers downstream workflows (see tool description). Typically use the **6-character shortcode** as `shortcode`.
+        - **`submit_form_data`:** Final submission when the user is done; locks the form and triggers downstream workflows (see tool description). Typically use the **6-character shortcode** as `shortcode`.
         - **extract_content** / **analyse_content:** User uploads a document or image; files are **base64** in tool args. Often `extract_content` then `analyse_content`.
         - Errors: If a tool returns an `error` field, read it and explain or ask the user to retry as appropriate.
     """,
