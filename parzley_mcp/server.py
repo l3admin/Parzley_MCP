@@ -40,9 +40,23 @@ mcp = FastMCP(
           for them to ask. Explain briefly:
           - **View / access their data:** use the **URL** (Parzley app).
           - **Update their data:** use the **URL** or the **email** channel (either works).
-          Formats (replace `shortcode` with their real code):
-          - **Web / app:** `https://app.parzley.com/shortcode` (e.g. `https://app.parzley.com/oi5urf`).
-          - **Email:** `shortcode@Parzley.com` (e.g. `oi5urf@Parzley.com`).
+          Formats (replace `shortcode` with their **6-character session** code only — see **App URL shape** below):
+          - **Web / app:** `https://app.parzley.com/shortcode` (e.g. `https://app.parzley.com/_00-2n`).
+          - **Email:** `shortcode@Parzley.com` (e.g. `_00-2n@Parzley.com`).
+
+        - **App URL shape (read carefully — common model error):** The path after `app.parzley.com/` must be
+          **exactly one** segment: the **6-character session shortcode** returned for their form session.
+          **Do not** put the **5-character crew** shortcode in the URL. **Do not** use two segments such as
+          `crew_shortcode/session_shortcode` or `fivechars/sixchars`.
+          - **Wrong:** `https://app.parzley.com/oZSUD/_00-2n` (crew + slash + session — **invalid**).
+          - **Right:** `https://app.parzley.com/_00-2n` (session code only).
+          You still pass **`crew_shortcode`** to **`send_message`** as an API argument; that is separate from
+          what you show the user in the **browser link**.
+
+        - **After `create_respondent` succeeds:** In the **same** user-facing reply (or your very next
+          message if the tool result arrives separately), you **MUST** include the full **URL + email** again
+          with their 6-character code, plus access vs update — even if you already shared them earlier.
+          Users often miss earlier turns; registration is when they most need how to connect to Parzley.
 
         USER EXPERIENCE (waiting, long input, and stepping away):
 
@@ -50,7 +64,9 @@ mcp = FastMCP(
           the moment that code is created or known in the session, **always** give the user the full **URL**
           and **email** (with their code substituted), plus the short distinction — **access** via URL;
           **update** via URL **or** email. Claude and other hosts sometimes underweight earlier sections, so
-          treat this block as non-optional whenever a 6-character shortcode applies.
+          treat this block as non-optional whenever a 6-character shortcode applies. **Do not** treat “I
+          already told them once” as sufficient for the whole conversation — **re-include URL + email**
+          after registration completes and whenever you remind them they can step away or return to their data.
 
         - **Heavy processing:** When the user pastes or uploads a large amount of text, or uses file-based
           tools, Parzley may need **up to a couple of minutes** to parse and process everything correctly.
@@ -88,18 +104,28 @@ mcp = FastMCP(
         Call `start_session` with the shortcode the user provides. This returns `session_id`, `crew_shortcode`, and `form_id` — store these for the entire conversation.
            - Users do not see internal IDs (`session_id`, `form_id`). They know a **5- or 6-character shortcode**; when starting with a 5-char code, that code *is* the crew shortcode until a 6-char code is issued.
 
-        3. *Initiate new sessions (using 5 char code): create unique 6 char code*
-        If a 5 char code is provided by the user, after `start_session` succeeds, 
-           - IMMEDIATELY call `send_message` with a friendly welcome/greeting as the message. This call is REQUIRED because it creates the unique user session and associated 6 char code. 
-           - Store the returned 6-character shortcode in the response — it will be used for the rest of the session. 
+        3. *Initiate new sessions (using 5 char code): create unique 6 char code — capture data before pushing registration*
+        If a 5 char code is provided by the user, after `start_session` succeeds,
+           - IMMEDIATELY call `send_message` with a friendly welcome/greeting as the message. This call is REQUIRED because it creates the unique user session and associated 6 char code.
+           - Store the returned 6-character shortcode in the response — it will be used for the rest of the session.
            - Use `concierge` from the response as the reply to show the user. This provides a specific welcome message (set by the form creator) and hint for which data can be collected first.
-           *Link the user to their data* 
-           - After the first `send_message` succeeds, ALWAYS ask the user for their: First name, Last name, and Email address
-           - Explain to the user that for security this information is required to enable later access to their data.
-           - Then call `create_respondent` with session_id, first_name, last_name, and email. This registers the respondent and links them to the response data via the 6 char shortcode.
-           - Do NOT call `create_respondent` before the first `send_message` has succeeded.
+           - **Let the user describe their incident or provide information first.** Use `send_message` to log whatever they send — answers, narrative, uploads handled via other tools — **without** requiring registration. **Never** tell the user that their information cannot be recorded or submitted until they register; that is false. `send_message` works without `create_respondent`.
            - The first time the new 6-character shortcode appears in a tool response, you **MUST** give the
              full **URL + email** (and access vs update) per **Proactive communication** and **User experience**.
+           *Registration (optional — offer after you have begun logging their information)*
+           - **After** the user has started sharing information (or after a natural first exchange if they go straight to registration), ask whether they would like to register with first name, last name, and email.
+           - Explain that registration is **not mandatory** but is **strongly recommended** so they can **access and return to their data later** (same reason you give the URL and email — resume, review, and update).
+           - If they agree, call `create_respondent` using the **latest** `send_message` result: use
+             **`session_id_from_api`** as `session_id` when that field is present (otherwise `session_id` from
+             `start_session`), and always pass **`session_shortcode`** as the `shortcode` argument when
+             present — registration often **fails** if the 6-character `shortcode` is omitted or if the
+             client-only `session_id` from `start_session` does not match the server session. Also pass
+             first_name, last_name, and email. If they decline or want to continue anonymously, keep using
+             `send_message` — do not block the flow.
+           - When `create_respondent` **succeeds**, your reply to the user **must** include the connection
+             channels: full **URL + email** for their 6-character code (see **Proactive communication**).
+             Do not confirm registration without also giving them how to reach Parzley outside chat.
+           - Do NOT call `create_respondent` before the first `send_message` has succeeded (the 6-character session must exist first).
 
         3b. *Resume with a 6-character shortcode (user already registered)*
 
@@ -116,12 +142,17 @@ mcp = FastMCP(
 
         5. *`send_message` interactions: Chat & sending data*
         To fill form fields, call `send_message` — it automatically fires both the concierge agent and the background parser/QA agents in parallel. 
+          - The tool may also return **`session_id_from_api`** and **`session_shortcode`** (from the API).
+            Use these when calling **`create_respondent`** so the respondent is linked to the live session.
           - Use `concierge` from the response as the reply to show the user.
           - Use `get_editor_suggestion` for guidance on errors (e.g. missing data, incorrect data, validation errors) and data missing from the schema or form.
           - Pass updated `form_data` / `conversation_history` when you have them so agents stay in sync.
           - Do NOT call any other tool until `start_session` has succeeded.
-          - **5-character path:** Do NOT call `create_respondent` until after the first `send_message` has
-            succeeded; do NOT treat form-filling as fully underway until `create_respondent` has succeeded.
+          - **5-character path:** Do NOT call `create_respondent` before the first `send_message` has
+            succeeded. You may call `send_message` many times to capture incident details and form answers
+            **before** offering registration. Form-filling and data logging do **not** depend on
+            `create_respondent`; only offer respondent creation after information is flowing, as optional
+            (strongly recommended for later access — see step 3).
           - **6-character path:** Respondent is already registered — skip `create_respondent` and skip
             asking for name/email (see step 3b).
 

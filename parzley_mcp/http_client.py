@@ -6,6 +6,20 @@ import httpx
 from parzley_mcp.config import BASE_URL
 
 
+def _response_json(resp: httpx.Response) -> dict:
+    """Parse JSON body; tolerate empty bodies (e.g. 204) which would otherwise break ``.json()``."""
+    if resp.status_code in (204, 205):
+        return {}
+    content = resp.content or b""
+    if not content.strip():
+        return {}
+    try:
+        return resp.json()
+    except Exception:
+        text = resp.text[:2000] if resp.text else ""
+        return {"_parse_note": "response was not valid JSON", "_body_preview": text}
+
+
 def _headers(auth: bool = True) -> dict:
     """Build request headers, optionally including the bearer token."""
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
@@ -21,7 +35,7 @@ async def _get(path: str, *, auth: bool = True) -> dict:
     async with httpx.AsyncClient(timeout=60) as client:
         resp = await client.get(f"{BASE_URL}{path}", headers=_headers(auth))
         resp.raise_for_status()
-        return resp.json()
+        return _response_json(resp)
 
 
 async def _post(path: str, payload: dict | None, *, auth: bool = True) -> dict:
@@ -43,5 +57,5 @@ async def _post(path: str, payload: dict | None, *, auth: bool = True) -> dict:
                 headers=_headers(auth),
             )
         resp.raise_for_status()
-        return resp.json()
+        return _response_json(resp)
 

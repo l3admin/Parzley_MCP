@@ -6,6 +6,62 @@ import asyncio
 from parzley_mcp.server import mcp
 from parzley_mcp.http_client import _post
 
+_SESSION_ID_KEYS = frozenset({"session_id"})
+_SHORTCODE_KEYS = frozenset(
+    {"shortcode", "temporary_shortcode", "temp_shortcode", "session_shortcode"}
+)
+
+
+def _collect_str_by_keys(obj: object, keys: frozenset[str], out: list[str]) -> None:
+    keys_lower = {k.lower() for k in keys}
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if k.lower() in keys_lower and isinstance(v, str):
+                s = v.strip()
+                if s:
+                    out.append(s)
+            _collect_str_by_keys(v, keys, out)
+    elif isinstance(obj, list):
+        for item in obj:
+            _collect_str_by_keys(item, keys, out)
+
+
+def _first_session_hints(branch: object) -> tuple[str | None, str | None]:
+    """Pull session_id and 6-character shortcode from one API branch if present."""
+    if not isinstance(branch, dict) or branch.get("error"):
+        return None, None
+    sids: list[str] = []
+    codes: list[str] = []
+    _collect_str_by_keys(branch, _SESSION_ID_KEYS, sids)
+    _collect_str_by_keys(branch, _SHORTCODE_KEYS, codes)
+    sid = sids[0] if sids else None
+    shortcode = next((c for c in codes if len(c) == 6), codes[0] if codes else None)
+    if shortcode is not None and len(shortcode) != 6:
+        shortcode = None
+    return sid, shortcode
+
+
+def _merge_session_hints(
+    concierge_result: object, agents_result: object
+) -> dict[str, str]:
+    """
+    Surfaces canonical IDs from Parzley responses for registration and tooling.
+
+    Prefer concierge over agents when both include a session_id.
+    """
+    hints: dict[str, str] = {}
+    c_sid, c_code = _first_session_hints(concierge_result)
+    a_sid, a_code = _first_session_hints(agents_result)
+    if c_sid:
+        hints["session_id_from_api"] = c_sid
+    elif a_sid:
+        hints["session_id_from_api"] = a_sid
+    if c_code:
+        hints["session_shortcode"] = c_code
+    elif a_code:
+        hints["session_shortcode"] = a_code
+    return hints
+
 
 @mcp.tool()
 async def send_message(
@@ -42,7 +98,9 @@ async def send_message(
     Returns:
         {
           "concierge": <ConciergeAgentResponse>,   ← use this for the reply to the user
-          "agents":    <ParserAndQAResponse>        ← background form-data updates
+          "agents":    <ParserAndQAResponse>,       ← background form-data updates
+          "session_id_from_api": optional — if present, prefer this for ``create_respondent`` ``session_id``,
+          "session_shortcode": optional — 6-character session code; pass to ``create_respondent`` as ``shortcode``
         }
     """
     concierge_payload = {
@@ -67,16 +125,13 @@ async def send_message(
         return_exceptions=True,
     )
 
-    return {
-        "concierge": (
-            concierge_result
-            if not isinstance(concierge_result, Exception)
-            else {"error": str(concierge_result)}
-        ),
-        "agents": (
-            agents_result
-            if not isinstance(agents_result, Exception)
-            else {"error": str(agents_result)}
-        ),
+    c_ok = concierge_result if not isinstance(concierge_result, Exception) else {"error": str(concierge_result)}
+    a_ok = agents_result if not isinstance(agents_result, Exception) else {"error": str(agents_result)}
+    out: dict = {
+        "concierge": c_ok,
+        "agents": a_ok,
     }
+    hints = _merge_session_hints(c_ok, a_ok)
+    out.update(hints)
+    return out
 

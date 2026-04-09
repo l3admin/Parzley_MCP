@@ -112,6 +112,7 @@ async def create_respondent(
     first_name: str,
     last_name: str,
     email: str,
+    shortcode: str | None = None,
 ) -> dict:
     """
     Create a respondent record linked to the current session.
@@ -119,30 +120,46 @@ async def create_respondent(
     Only for **new** sessions that began with a **5-character** shortcode. Skip this tool if the user
     started with a **6-character** shortcode (respondent is already registered).
 
-    Call only after the first `send_message` has succeeded (see server instructions), then collect
-    first_name, last_name, and email from the user before calling this.
+    Call only after the first `send_message` has succeeded (see server instructions). Registration is
+    **optional** but **strongly recommended** so the user can access their data later; collect
+    first_name, last_name, and email when the user agrees to register — do not require this before
+    logging answers via `send_message`.
 
     Args:
-        session_id:  The session ID returned by start_session.
+        session_id:  Prefer `session_id_from_api` from the latest `send_message` result when present;
+          otherwise the `session_id` from `start_session`. The API ties respondents to the live session.
         first_name:  Respondent's first name.
         last_name:   Respondent's last name.
         email:       Respondent's email address.
+        shortcode:   The **6-character** session shortcode from `send_message` (`session_shortcode` when
+          returned). Strongly recommended — many Parzley deployments require it to link the respondent
+          to the correct form session.
 
     Returns:
         The created respondent record, or an error dict.
     """
     payload = {
-        "first_name": first_name,
-        "last_name": last_name,
-        "email": email,
-        "session_id": session_id,
+        "first_name": first_name.strip(),
+        "last_name": last_name.strip(),
+        "email": email.strip(),
+        "session_id": session_id.strip(),
     }
+    if shortcode:
+        payload["shortcode"] = shortcode.strip()
+
     try:
         result = await _post("/respondents/", payload, auth=False)
         return result
     except httpx.HTTPStatusError as exc:
+        detail: object = exc.response.text
+        try:
+            detail = exc.response.json()
+        except Exception:
+            pass
         return {
-            "error": f"Failed to create respondent: {exc.response.status_code} {exc.response.text}"
+            "error": (
+                f"Failed to create respondent ({exc.response.status_code}): {detail}"
+            )
         }
     except Exception as exc:
         return {"error": f"Failed to create respondent: {exc}"}
