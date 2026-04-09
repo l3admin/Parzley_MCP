@@ -34,14 +34,45 @@ mcp = FastMCP(
 
         PROACTIVE COMMUNICATION (outbound — do these without waiting for the user to ask):
 
-        - **The first time the 6-character shortcode is returned** to you in a tool response (typically
-          from the first `send_message` after `start_session` with a 5-character shortcode): proactively
-          tell the user that code and how they can access their data later — **email** and **web / online
-          (Parzley app)**. Do not wait for the user to ask. (This is about the code **coming back from
-          Parzley**, not merely the user typing a shortcode they already know.)
-          - **Email:** `shortcode@Parzley.com` — use their actual code (e.g. `oi5urf@Parzley.com`).
-          - **Web / app:** `https://app.parzley.com/shortcode` — replace `shortcode` with the 6-character
-            code (e.g. `https://app.parzley.com/oi5urf`).
+        - **As soon as a 6-character shortcode exists** (returned from Parzley in a tool response, or
+          supplied by the user for a resume), you **MUST** tell the user **both** the **web URL** and the
+          **email address** below, using their **actual** 6-character code. Do not skip this; do not wait
+          for them to ask. Explain briefly:
+          - **View / access their data:** use the **URL** (Parzley app).
+          - **Update their data:** use the **URL** or the **email** channel (either works).
+          Formats (replace `shortcode` with their real code):
+          - **Web / app:** `https://app.parzley.com/shortcode` (e.g. `https://app.parzley.com/oi5urf`).
+          - **Email:** `shortcode@Parzley.com` (e.g. `oi5urf@Parzley.com`).
+
+        USER EXPERIENCE (waiting, long input, and stepping away):
+
+        - **Mandatory — URL + email whenever the 6-character code is known:** Repeat the obligation above:
+          the moment that code is created or known in the session, **always** give the user the full **URL**
+          and **email** (with their code substituted), plus the short distinction — **access** via URL;
+          **update** via URL **or** email. Claude and other hosts sometimes underweight earlier sections, so
+          treat this block as non-optional whenever a 6-character shortcode applies.
+
+        - **Heavy processing:** When the user pastes or uploads a large amount of text, or uses file-based
+          tools, Parzley may need **up to a couple of minutes** to parse and process everything correctly.
+          **Before** you call the relevant tools, tell the user plainly that processing can take that long
+          so they are not left wondering whether something failed. If they already have a 6-character code,
+          again include **URL + email** and that they can step away and return via those channels.
+
+        - **Long text — paragraph chunking (chat / MCP):** If the user pastes **very long** text, do **not**
+          send it all in one `send_message` string. Split only at **paragraph** boundaries (blank line /
+          new paragraph — no token-count strategy). Aim for about **two paragraphs per chunk**; that length
+          is acceptable, and you may split slightly earlier or later at a natural paragraph break. Send chunks
+          with successive `send_message` calls. **Always tell the user** you are sending in paragraph-based
+          chunks and why (reliable processing, clearer progress).
+
+        - **One long document or single blob — suggest email instead:** If the user wants **everything** in
+          **one** document or **one** uninterrupted long text, suggest they email their **6-character**
+          session address — **`shortcode@Parzley.com`** (with their real code) — with the file **attached**
+          or the full text **cut-and-pasted into the email body**. That path delivers a single payload;
+          pairing chunking in chat with this option gives users a clear choice.
+
+        - **Closing the session and coming back:** Once they have a **6-character shortcode**, they can
+          leave and resume — same **URL** and **email** as above (access via URL; update via URL or email).
 
         IMPORTANT FLOW:
 
@@ -67,14 +98,17 @@ mcp = FastMCP(
            - Explain to the user that for security this information is required to enable later access to their data.
            - Then call `create_respondent` with session_id, first_name, last_name, and email. This registers the respondent and links them to the response data via the 6 char shortcode.
            - Do NOT call `create_respondent` before the first `send_message` has succeeded.
-           - The first time the new 6-character shortcode appears in a tool response, follow **Proactive communication** (shortcode + email + web access).
+           - The first time the new 6-character shortcode appears in a tool response, you **MUST** give the
+             full **URL + email** (and access vs update) per **Proactive communication** and **User experience**.
 
         3b. *Resume with a 6-character shortcode (user already registered)*
 
         If the user provides a **6-character** shortcode, after `start_session` succeeds:
            - **Do not** ask for first name, last name, or email — respondent data is already tied to this session.
            - **Do not** call `create_respondent`.
-           - Call `send_message` to continue the conversation and form-filling as usual (and follow **Proactive communication** for access instructions if not already given this session).
+           - Call `send_message` to continue the conversation and form-filling as usual. **MUST** give full
+             **URL + email** for that code (access vs update) per **Proactive communication** / **User experience**
+             if you have not already done so this session.
 
         4. *Getting form structure, and form data information with `get_form` & `get_form_data_by_session` tools*
         Call `get_form` if the user explicitly asks about the form structure, fields, or requirements (e.g. "how many fields?", "what does this form contain?"). 

@@ -21,6 +21,9 @@ async def extract_content(
     """
     Extract raw text / vision description from an uploaded file.
 
+    If the user needs one full document delivered in a single step, suggest they email ``shortcode@Parzley.com``
+    (their 6-character code) with the file attached or long text in the body — see server instructions.
+
     Runs LlamaParse for PDFs or VisionAgent (Groq) for images.
     Does NOT run validation — use analyse_content for that.
     Does NOT require authentication.
@@ -62,6 +65,10 @@ async def analyse_content(
 ) -> dict:
     """
     Analyze document content against a user query in a simple, direct way.
+
+    For a single huge document the user wants handled as one piece, prefer suggesting email to
+    ``shortcode@Parzley.com`` (attachment or pasted body) per server instructions; otherwise process in
+    reasonable pieces and keep the user informed.
 
     Use this after extract_content to intelligently match extracted data
     to the fields of a specific form. Accepts a file upload via

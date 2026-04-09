@@ -31,7 +31,9 @@ async def send_message(
     Args:
         session_id: Session ID returned by start_session.
         crew_shortcode: Crew shortcode returned by start_session.
-        message: The user's message or answer.
+        message: The user's message or answer. For very long pastes, split at paragraph boundaries (~two
+            paragraphs per chunk is a good target), send with successive calls, and tell the user — or
+            suggest email to ``shortcode@Parzley.com`` for one attachment/body paste (see server instructions).
         form_data: Current form data dict (field → value). Pass the latest
                    known state so the agents have full context.
         conversation_history: Full prior conversation as { role, content } dicts.
