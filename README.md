@@ -4,19 +4,33 @@ Exposes the [Parzley](https://api.parzley.com) AI Form Filling Agent API
 as an MCP server — enabling Claude Desktop, Claude.ai, and any MCP-compatible
 client to interact with Parzley natively via natural language.
 
+**Requires Python 3.13+** (see `pyproject.toml`).
+
 ---
 
 ## Quick start
 
-### 1. Install dependencies
+### 1. Install the package
+
+From the repository root (use a virtual environment):
 
 ```bash
-uv add fastmcp httpx
+pip install .
 ```
+
+Or with [uv](https://docs.astral.sh/uv/):
+
+```bash
+uv sync
+```
+
+Dependencies: `fastmcp`, `httpx` (declared in `pyproject.toml`).
 
 ---
 
 ## Connecting to Claude Desktop (local / stdio)
+
+The server entry point is **`main.py`** (not the legacy commented `parzley_mcp_server.py`).
 
 Add the following to your Claude Desktop config file:
 
@@ -27,46 +41,56 @@ Add the following to your Claude Desktop config file:
 {
   "mcpServers": {
     "parzley": {
-      "command": "/opt/homebrew/bin/python3.11",
-      "args": ["/Users/diganto/Downloads/mcp files/parzley_mcp_server.py"]
+      "command": "python",
+      "args": ["C:/path/to/Parzley_MCP/main.py"]
     }
   }
 }
 ```
 
-> **Note:** Replace `command` with your actual Python binary path (`which python3`).
+> **Note:** Use the full path to your clone of this repo. `command` must be a **Python 3.13+** interpreter (`where python` / `which python3`). On Windows, forward slashes in `args` are fine.
 
-Restart Claude Desktop completely (`Cmd+Q` then reopen). The Parzley tools will
+Restart Claude Desktop completely (quit fully, then reopen). The Parzley tools will
 appear as a 🔧 hammer icon in the chat input bar.
 
 ---
 
-## Connecting to Claude.ai (remote / SSE)
+## Connecting to Claude.ai (remote)
 
-Run the server in SSE mode:
+**Streamable HTTP** (recommended; works through Cloudflare) — endpoint **`/mcp`**:
 
 ```bash
-python parzley_mcp_server.py --transport sse --port 8001
+python main.py --transport http --port 8001
 ```
 
 Then in Claude.ai → **Settings → Integrations → Add MCP Server**:
+
+- **URL**: `https://your-domain.com:8001/mcp`
+
+**SSE** (legacy; some setups need Cloudflare proxy adjustments) — endpoint **`/sse`**:
+
+```bash
+python main.py --transport sse --port 8001
+```
+
 - **URL**: `https://your-domain.com:8001/sse`
 
-### Docker (recommended for production)
+---
 
-```dockerfile
-FROM python:3.12-slim
-WORKDIR /app
-COPY parzley_mcp_server.py ./
-RUN pip install fastmcp httpx
-EXPOSE 8001
-CMD ["python", "parzley_mcp_server.py", "--transport", "sse", "--port", "8001"]
-```
+### Docker (production)
+
+A **`Dockerfile`** is included. It installs the package and runs **`main.py`** with HTTP transport:
 
 ```bash
 docker build -t parzley-mcp .
-docker run -p 8001:8001 parzley-mcp
+docker run -p 8080:8080 parzley-mcp
 ```
+
+The image listens on **`$PORT`** (default **8080** in the Dockerfile). Reverse-proxy to **`/mcp`** as needed.
+
+### Railway (GitHub-connected deploy)
+
+If you link this repository to [Railway](https://railway.app/), Railway will typically detect the **`Dockerfile`** and build with Docker (your **`pyproject.toml`** is still used inside the image via `pip install .` — it does not conflict). Railway injects a **`PORT`** environment variable at runtime (often **8080** when public networking targets that port); the **`Dockerfile`** already binds to **`${PORT}`**, so the process matches Railway’s **Networking → port** setting without hardcoding. Configure your MCP client to use your HTTPS URL with the **`/mcp`** path (e.g. `https://<service>.up.railway.app/mcp` or your custom domain).
 
 ---
 
@@ -76,7 +100,7 @@ docker run -p 8001:8001 parzley-mcp
 |---|---|
 | `start_session` | Resolve a shortcode and start a new form-filling session. Must be called first. |
 | `parzley_message_turn` | Single MCP call that runs `concierge_chat` and `chat_with_agents` in parallel — use on every user message after `start_session`. |
-| `register_respondent` | Optional: register name and email for the session (after the first `parzley_message_turn` when the user agrees). |
+| `register_respondent` | Link name + email to the session. **Optional** in chat — **strongly recommended** so the user can open and manage their answers in the **Parzley web app** (browser access is tied to that email). Call after the first successful `parzley_message_turn` when the user agrees. |
 | `get_form_definition` | Fetch the full form definition (`schema`, `uiSchema`, `formContext`, etc.) for a `form_id`. |
 | `get_form_data_by_session` | Fetch field values already saved for a `session_id`. |
 | `get_form_data_feedback` | Feedback on form data quality, gaps, and validation for the session (errors and shortfalls vs concierge “what to ask next”). |
@@ -106,10 +130,10 @@ User provides shortcode
 
 ### Shortcode types
 
-| Length | Type | Behaviour |
+| Length | Role | Behaviour |
 |---|---|---|
-| **5 chars** | Crew shortcode | Used directly; a new `session_id` is generated automatically |
-| **6 chars** | Temporary / shared shortcode | Resolved via `GET /shortcodes/{shortcode}` to get both `crew_shortcode` and `session_id` |
+| **5 chars** | Crew / empty template | Identifies the **empty** form for that crew; `start_session` starts work against that template. Sending data via `parzley_message_turn` creates a **6-character** session. |
+| **6 chars** | Session + saved data | Identifies a specific form instance and answers. Resolved via the API to `crew_shortcode` and `session_id` for resume. |
 
 ---
 
@@ -156,6 +180,16 @@ Claude will:
 
 ---
 
+## Smoke test (optional)
+
+After install:
+
+```bash
+python -m unittest tests.test_smoke -v
+```
+
+---
+
 ## Notes
 
 - **Timeouts**: File upload tools (`extract_content`, `analyse_content`) use a
@@ -169,6 +203,6 @@ Claude will:
 | Problem | Fix |
 |---|---|
 | Tools don't appear in Claude | Check the config file path, quit and fully reopen Claude Desktop |
-| `ModuleNotFoundError` | Run `uv add fastmcp httpx` inside the project directory |
-| Server crashes on start | Run `python parzley_mcp_server.py` directly in terminal to see the error |
+| `ModuleNotFoundError` | Run `pip install .` from the project root (Python 3.13+) |
+| Server crashes on start | Run `python main.py` in a terminal to see the error |
 | File upload fails | Ensure the file is properly base64-encoded and `file_name` has the correct extension |

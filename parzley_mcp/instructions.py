@@ -32,14 +32,31 @@ PARZLEY_CONCEPTS = _block(
       collected). Pass **`crew_shortcode`** from `start_session` into `parzley_message_turn`; use the
       **`concierge`** field in the response as the user-facing reply.
 
-    - **5-character shortcode:** Identifies the crew’s *form template* (empty form). Use it when the
-      user starts fresh. `start_session` creates a new `session_id` for that crew/form.
+    - **5-character shortcode (crew / empty form):** Identifies the **form template only** — the form is
+      **always empty** at this code. Use it when the user starts fresh. You can learn **what the form asks**
+      (structure, fields) via tools; there is **no** saved respondent data tied to this code alone.
+      `start_session` with this code starts work against that empty template.
 
-    - **6-character shortcode:** Identifies a *specific* form-filling session and its saved answers
-      (work in progress or complete). It always resolves to the same `session_id` and `crew_shortcode`.
-      When the user gives you this code, that session **already has respondent registration** (name,
-      email, etc.) — do **not** ask for those details again or call `register_respondent` again unless an
-      API error shows registration is missing.
+    - **Creating the 6-character session:** The first time you send user content into that empty template
+      (e.g. the required welcome `parzley_message_turn` after `start_session`), Parzley creates a **6-character
+      session shortcode**. That code identifies **this form instance plus the user’s saved answers** (work in
+      progress or complete). It always resolves to the same `session_id` and underlying `crew_shortcode`.
+
+    - **6-character shortcode (session + data):** Use it with `start_session` whenever the user provides it
+      so the correct session is loaded. **Registration is separate:** a 6-character code can exist **before**
+      the user registers — do not assume “6-character ⇒ already registered.” When **resuming** with a code the
+      user already used in Parzley, they are usually already registered; **do not** ask for name/email or call
+      `register_respondent` again unless a tool error indicates registration is missing.
+
+    - **Email vs web (data security):** The **6-character code** is used in the **session email address**
+      (`shortcode@Parzley.com`). That channel is available **regardless of registration** — users can email
+      Parzley at that address to send material or updates. **The Parzley web URL for this session does not
+      unlock access to their data in the browser until after `register_respondent` succeeds.** Parzley ties
+      web access to the registered email so the **correct user** sees the **correct data**. Before
+      registration, **do not** tell the user they can “view” or “open” their saved data via the app URL;
+      explain that **browser access** comes **after** they register, while **email** works for sending to
+      their session in the meantime. **Encourage** registration (name + **email**) when appropriate so users
+      who want the **web form / app** can get it — chat never requires it; see **Registration**.
 
     - **API field `mission_name`:** Some `start_session` responses include this key (legacy Parzley
       name). Treat it as an optional display label for the crew/form setup; prefer explaining things
@@ -57,17 +74,26 @@ PROACTIVE_COMMUNICATION = _block(
     PROACTIVE COMMUNICATION (outbound — do these without waiting for the user to ask):
 
     - **As soon as a 6-character shortcode exists** (returned from Parzley in a tool response, or
-      supplied by the user for a resume), you **MUST** tell the user **both** the **web URL** and the
-      **email address** below, using their **actual** 6-character code. Do not skip this; do not wait
-      for them to ask. Explain briefly:
-      - **View / access their data:** use the **URL** (Parzley app).
-      - **Update their data:** use the **URL** or the **email** channel (either works).
-      Formats (replace `shortcode` with their **6-character session** code only — see **App URL shape** below):
-      - **Web / app:** `https://app.parzley.com/shortcode` (e.g. `https://app.parzley.com/_00-2n`).
-      - **Email:** `shortcode@Parzley.com` (e.g. `_00-2n@Parzley.com`).
+      supplied by the user for a resume), you **MUST** give the user their **session email address** using
+      their **actual** 6-character code. Do not skip this; do not wait for them to ask. Explain that they
+      can **email Parzley at that address** to send updates, attachments, or long text **regardless of
+      whether they have registered yet** — this is how they reach their session by email.
 
-    - **App URL shape (read carefully — common model error):** The path after `app.parzley.com/` must be
-      **exactly one** segment: the **6-character session shortcode** returned for their form session.
+    - **Web URL — only after registration (security):** Do **not** present the app **URL** as a way to
+      **view or manage their saved data in the browser** until **`register_respondent` has succeeded**
+      for this session. Parzley uses registration (email) so the right person accesses the right data.
+      **Before** registration: you may briefly note that **browser access** will be available **after** they
+      register, but **do not** imply they can open their data online yet. **After** registration: you
+      **MUST** give the **full URL** (and repeat the email) — that is when they can use the web app for
+      access/update per normal product behavior.
+
+    - **Formats** (replace `shortcode` with their **6-character session** code only — see **App URL shape**):
+      - **Email (always share once the 6-character code exists):** `shortcode@Parzley.com` (e.g. `_00-2n@Parzley.com`).
+      - **Web / app (share for data access only after registration):** `https://app.parzley.com/shortcode`
+        (e.g. `https://app.parzley.com/_00-2n`).
+
+    - **App URL shape (read carefully — common model error):** When you do give the URL, the path after
+      `app.parzley.com/` must be **exactly one** segment: the **6-character session shortcode**.
       **Do not** put the **5-character crew** shortcode in the URL. **Do not** use two segments such as
       `crew_shortcode/session_shortcode` or `fivechars/sixchars`.
       - **Wrong:** `https://app.parzley.com/oZSUD/_00-2n` (crew + slash + session — **invalid**).
@@ -76,9 +102,10 @@ PROACTIVE_COMMUNICATION = _block(
       what you show the user in the **browser link**.
 
     - **After `register_respondent` succeeds:** In the **same** user-facing reply (or your very next
-      message if the tool result arrives separately), you **MUST** include the full **URL + email** again
-      with their 6-character code, plus access vs update — even if you already shared them earlier.
-      Users often miss earlier turns; registration is when they most need how to connect to Parzley.
+      message if the tool result arrives separately), you **MUST** include the **email** again **and** the
+      **full web URL** with their 6-character code, and clarify that they can now use **either** channel for
+      ongoing access/update as appropriate. Users often miss earlier turns; registration is when they most
+      need the **complete** picture including **browser** access.
     """
 )
 
@@ -86,19 +113,22 @@ USER_EXPERIENCE = _block(
     """
     USER EXPERIENCE (waiting, long input, and stepping away):
 
-    - **Mandatory — URL + email whenever the 6-character code is known:** Repeat the obligation above:
-      the moment that code is created or known in the session, **always** give the user the full **URL**
-      and **email** (with their code substituted), plus the short distinction — **access** via URL;
-      **update** via URL **or** email. Claude and other hosts sometimes underweight earlier sections, so
-      treat this block as non-optional whenever a 6-character shortcode applies. **Do not** treat “I
-      already told them once” as sufficient for the whole conversation — **re-include URL + email**
-      after registration completes and whenever you remind them they can step away or return to their data.
+    - **Mandatory — session email whenever the 6-character code is known:** Repeat the obligation above:
+      the moment that code is created or known in the session, **always** give the user their **`shortcode@Parzley.com`**
+      address (with their code substituted) and what it is for. **Web URL for viewing data in the app**
+      follows the **registration rule** in **Proactive communication** — do not oversell browser access
+      before registration. Claude and other hosts sometimes underweight earlier sections, so treat this block
+      as non-optional whenever a 6-character shortcode applies. **Do not** treat “I already told them once”
+      as sufficient for the whole conversation — **re-include the session email** (and after registration,
+      **URL + email** together) whenever you remind them they can step away, send more material, or return to
+      their data.
 
     - **Heavy processing:** When the user pastes or uploads a large amount of text, or uses file-based
       tools, Parzley may need **up to a couple of minutes** to parse and process everything correctly.
       **Before** you call the relevant tools, tell the user plainly that processing can take that long
       so they are not left wondering whether something failed. If they already have a 6-character code,
-      again include **URL + email** and that they can step away and return via those channels.
+      again include their **session email** (and **URL** too if they are **registered** — see **Proactive communication**)
+      and that they can step away and reconnect via those channels.
 
     - **Long text — paragraph chunking (chat / MCP):** If the user pastes **very long** text, do **not**
       send it all in one `parzley_message_turn` string. Split only at **paragraph** boundaries (blank line /
@@ -114,27 +144,74 @@ USER_EXPERIENCE = _block(
       pairing chunking in chat with this option gives users a clear choice.
 
     - **Closing the session and coming back:** Once they have a **6-character shortcode**, they can
-      leave and resume — same **URL** and **email** as above (access via URL; update via URL or email).
+      leave and resume. **Email** works for sending to their session **before or after** registration;
+      **browser access** to their data aligns with the **registration** rule above (full **URL + email**
+      once registered).
     """
 )
 
-# --- Numbered flow (IMPORTANT FLOW) ------------------------------------------
+REGISTRATION = _block(
+    """
+    REGISTRATION (`register_respondent`):
+
+    - **What it is:** Links **first name, last name, and email** to the **6-character session** so Parzley
+      knows who may access that session’s data **in the web app**. Tool: `register_respondent`. The **email
+      address** is what unlocks **web** access (with identity checks); treat collecting it as the main goal
+      when you invite registration.
+
+    - **Policy — not mandatory, but strongly encourage email:** The user **never** must register to
+      continue in this chat — `parzley_message_turn` works without it, and you **must not** block, shame,
+      or imply the conversation will stop if they decline. **Do** strongly push registration in a helpful
+      tone: explain that **without** name + email they **cannot** open or manage their answers in the
+      **Parzley web app** (browser); chat here is still fine, but the **web form / app experience** requires
+      registration so Parzley can tie the right person to the right data. Emphasize convenience (return
+      anytime, review and update in the browser) and privacy (who is allowed to see that session online).
+
+    - **Why it matters:** Registration **is required only for web/browser access** to their saved session
+      data, not for filling the form in this assistant (see **PARZLEY CONCEPTS**, **Email vs web**). Strongly
+      recommend it so you can give them the **full URL + email** picture and they can use the **web** product
+      confidently — not only the inbound **session email** address.
+
+    - **When to offer (5-character / new session path):** Only **after** the user has begun sharing
+      information (or a natural first exchange if they want to register immediately). **Never** imply
+      their data cannot be recorded until they register. **Do not** call `register_respondent` before the
+      **first** `parzley_message_turn` has succeeded — the **6-character session must exist** first.
+      When you ask, frame it as **strongly recommended** for **web access**, not as a requirement to proceed.
+
+    - **When not to register:** If the user **resumes with a 6-character** shortcode and is already
+      registered, **do not** ask for name/email or call `register_respondent` (unless a tool error shows
+      registration is missing). See *Resume with a 6-character shortcode* in **IMPORTANT FLOW**.
+
+    - **Calling the tool:** Use the **latest** `parzley_message_turn` result: **`session_id_from_api`**
+      as `session_id` when present (otherwise `session_id` from `start_session`), and always pass
+      **`session_shortcode`** as the `shortcode` argument when present — registration often **fails** if
+      the 6-character `shortcode` is omitted or if the client-only `session_id` from `start_session` does
+      not match the server session. Also pass `first_name`, `last_name`, and `email`. If they decline or
+      prefer to stay anonymous in chat, keep using `parzley_message_turn` — do not block the flow.
+
+    - **After `register_respondent` succeeds:** In the **same** user-facing reply (or your very next
+      message), you **must** give **session email** and **full web URL** with their 6-character code and
+      clarify they can use **either** channel for ongoing access/update as appropriate (see **Proactive communication**).
+      Do not confirm registration without that **complete** outbound message, including **browser** access.
+    """
+)
+
+# --- Flow (IMPORTANT FLOW) ---------------------------------------------------
 
 FLOW_CONNECT = _block(
     """
-    1. *Connect to the correct schema or form and data*
+    *Connect to the correct schema or form and data*
     When a user begins a session, greet them with a friendly welcome message and ask them to provide their shortcode (5 or 6 characters).
-       - A 5 char code references an EMPTY schema or form, ready to accept data
-       - A 6 char code references a form that has been partially (or fully) filled out
-       - After ANY data is submitted to an empty schema or form, the `parzley_message_turn` tool will return a 6 char code for the form
-       - ALWAYS use the 6 char if provided by the user so `start_session` resolves the correct `session_id`; it always links to the same session
+       - A **5-character** code is the **empty** form template for that crew — no saved answers yet; you can learn form structure, but the template stays empty until you send data through Parzley.
+       - Sending content via `parzley_message_turn` (after `start_session`) **creates** a **6-character** code that identifies **this form instance plus the user’s data** in Parzley.
+       - A **6-character** code the user already has loads that **same** session and data; use it with `start_session` so `session_id` resolves correctly.
        - You MUST have a shortcode to connect to a schema or form or collect / insert data.
     """
 )
 
 FLOW_START_SESSION = _block(
     """
-    2. *Start the Parzley session & retrieve required reference IDs*
+    *Start the Parzley session & retrieve required reference IDs*
     Call `start_session` with the shortcode the user provides. This returns `session_id`, `crew_shortcode`, and `form_id` — store these for the entire conversation.
        - Users do not see internal IDs (`session_id`, `form_id`). They know a **5- or 6-character shortcode**; when starting with a 5-char code, that code *is* the crew shortcode until a 6-char code is issued.
     """
@@ -142,47 +219,37 @@ FLOW_START_SESSION = _block(
 
 FLOW_NEW_SESSION_FIVE_CHAR = _block(
     """
-    3. *Initiate new sessions (using 5 char code): create unique 6 char code — capture data before pushing registration*
+    *Initiate new sessions (using 5 char code): create unique 6 char code — capture data before offering registration*
     If a 5 char code is provided by the user, after `start_session` succeeds,
        - IMMEDIATELY call `parzley_message_turn` with a friendly welcome/greeting as the message. This call is REQUIRED because it creates the unique user session and associated 6 char code.
        - Store the returned 6-character shortcode in the response — it will be used for the rest of the session.
        - Use `concierge` from the response as the reply to show the user. This provides a specific welcome message (set by the form creator) and hint for which data can be collected first.
        - **Let the user describe their incident or provide information first.** Use `parzley_message_turn` to log whatever they send — answers, narrative, uploads handled via other tools — **without** requiring registration. **Never** tell the user that their information cannot be recorded or submitted until they register; that is false. `parzley_message_turn` works without `register_respondent`.
        - The first time the new 6-character shortcode appears in a tool response, you **MUST** give the
-         full **URL + email** (and access vs update) per **Proactive communication** and **User experience**.
-       *Registration (optional — offer after you have begun logging their information)*
-       - **After** the user has started sharing information (or after a natural first exchange if they go straight to registration), ask whether they would like to register with first name, last name, and email.
-       - Explain that registration is **not mandatory** but is **strongly recommended** so they can **access and return to their data later** (same reason you give the URL and email — resume, review, and update).
-       - If they agree, call `register_respondent` using the **latest** `parzley_message_turn` result: use
-         **`session_id_from_api`** as `session_id` when that field is present (otherwise `session_id` from
-         `start_session`), and always pass **`session_shortcode`** as the `shortcode` argument when
-         present — registration often **fails** if the 6-character `shortcode` is omitted or if the
-         client-only `session_id` from `start_session` does not match the server session. Also pass
-         first_name, last_name, and email. If they decline or want to continue anonymously, keep using
-         `parzley_message_turn` — do not block the flow.
-       - When `register_respondent` **succeeds**, your reply to the user **must** include the connection
-         channels: full **URL + email** for their 6-character code (see **Proactive communication**).
-         Do not confirm registration without also giving them how to reach Parzley outside chat.
-       - Do NOT call `register_respondent` before the first `parzley_message_turn` has succeeded (the 6-character session must exist first).
+         **session email** (`shortcode@Parzley.com`) per **Proactive communication** — **not** the web URL as
+         “you can view your data now”; browser access comes **after** registration (see **PARZLEY CONCEPTS**).
+       - **Registration:** Follow the **Registration** block — when to offer, how to call `register_respondent`,
+         and required user messaging after success.
     """
 )
 
 FLOW_RESUME_SIX_CHAR = _block(
     """
-    3b. *Resume with a 6-character shortcode (user already registered)*
+    *Resume with a 6-character shortcode (user already registered)*
 
     If the user provides a **6-character** shortcode, after `start_session` succeeds:
        - **Do not** ask for first name, last name, or email — respondent data is already tied to this session.
        - **Do not** call `register_respondent`.
-       - Call `parzley_message_turn` to continue the conversation and form-filling as usual. **MUST** give full
-         **URL + email** for that code (access vs update) per **Proactive communication** / **User experience**
-         if you have not already done so this session.
+       - Call `parzley_message_turn` to continue the conversation and form-filling as usual. **MUST** give the
+         **session email** for that code per **Proactive communication** / **User experience** if you have not
+         already done so; **also** give the **web URL** if they are registered (typically yes on this path) —
+         see **PARZLEY CONCEPTS** for email vs URL rules.
     """
 )
 
 FLOW_GET_FORM_TOOLS = _block(
     """
-    4. *Getting form structure, and form data information with `get_form_definition` & `get_form_data_by_session` tools*
+    *Getting form structure, and form data information with `get_form_definition` & `get_form_data_by_session` tools*
     Call `get_form_definition` if the user asks about the form structure, fields, requirements, or how answers should
     look — the response includes `schema`, `uiSchema`, and **`formContext`** (per-field guidance such as
     validation text and good/bad examples when the form author defined them).
@@ -192,7 +259,7 @@ FLOW_GET_FORM_TOOLS = _block(
 
 FLOW_PARZLEY_MESSAGE_TURN = _block(
     """
-    5. *`parzley_message_turn` — chat & sending data*
+    *`parzley_message_turn` — chat & sending data*
     To fill form fields, call `parzley_message_turn` — it automatically fires both the concierge agent and the background parser/QA agents in parallel.
       - The tool may also return **`session_id_from_api`** and **`session_shortcode`** (from the API).
         Use these when calling **`register_respondent`** so the respondent is linked to the live session.
@@ -201,12 +268,9 @@ FLOW_PARZLEY_MESSAGE_TURN = _block(
       - Pass updated `form_data` / `conversation_history` when you have them so agents stay in sync.
       - Do NOT call any other tool until `start_session` has succeeded.
       - **5-character path:** Do NOT call `register_respondent` before the first `parzley_message_turn` has
-        succeeded. You may call `parzley_message_turn` many times to capture incident details and form answers
-        **before** offering registration. Form-filling and data logging do **not** depend on
-        `register_respondent`; only offer respondent creation after information is flowing, as optional
-        (strongly recommended for later access — see step 3).
-      - **6-character path:** Respondent is already registered — skip `register_respondent` and skip
-        asking for name/email (see step 3b).
+        succeeded. You may call `parzley_message_turn` many times before offering registration. See **Registration**.
+      - **6-character path (resume):** Usually already registered — skip `register_respondent` and skip
+        asking for name/email (see *Resume with a 6-character shortcode* and **Registration**).
     """
 )
 
@@ -240,6 +304,7 @@ SERVER_INSTRUCTIONS = "\n\n".join(
         PARZLEY_CONCEPTS,
         PROACTIVE_COMMUNICATION,
         USER_EXPERIENCE,
+        REGISTRATION,
         IMPORTANT_FLOW,
         OTHER_TOOLS,
     ]

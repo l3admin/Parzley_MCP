@@ -1,3 +1,7 @@
+[build-system]
+requires = ["hatchling>=1.18.0"]
+build-backend = "hatchling.build"
+
 [project]
 name = "parzley-mcp"
 version = "0.1.0"
@@ -9,4 +13,6 @@ dependencies = [
     "fastmcp>=2.14.1",
 ]
 
+[tool.hatch.build.targets.wheel]
+packages = ["parzley_mcp"]
 

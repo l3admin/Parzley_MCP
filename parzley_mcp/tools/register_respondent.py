@@ -2,7 +2,7 @@
 
 import httpx
 
-from parzley_mcp.instructions import FLOW_RESUME_SIX_CHAR, PROACTIVE_COMMUNICATION
+from parzley_mcp.instructions import PROACTIVE_COMMUNICATION, REGISTRATION
 from parzley_mcp.server import mcp
 from parzley_mcp.http_client import _post
 
@@ -18,21 +18,12 @@ async def register_respondent(
     f"""
     Register a respondent record linked to the current session.
 
+    Registration is **optional** for continuing in chat but **strongly recommended** so the user can add
+    name + **email** and access their data in the **Parzley web app**; see **Registration** below.
+
+    {REGISTRATION}
+
     {PROACTIVE_COMMUNICATION}
-
-    {FLOW_RESUME_SIX_CHAR}
-
-    When the user agrees to register, call this with the **latest** `parzley_message_turn` result: use
-    **`session_id_from_api`** as `session_id` when present (otherwise `session_id` from `start_session`),
-    and pass **`session_shortcode`** as `shortcode` when present.
-
-    Only for **new** sessions that began with a **5-character** shortcode. Skip this tool if the user
-    started with a **6-character** shortcode (respondent is already registered).
-
-    Call only after the first `parzley_message_turn` has succeeded. Registration is
-    **optional** but **strongly recommended** so the user can access their data later; collect
-    first_name, last_name, and email when the user agrees to register — do not require this before
-    logging answers via `parzley_message_turn`.
 
     Args:
         session_id:  Prefer `session_id_from_api` from the latest `parzley_message_turn` result when present;

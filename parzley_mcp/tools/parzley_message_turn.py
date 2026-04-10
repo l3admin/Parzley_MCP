@@ -13,6 +13,7 @@ from parzley_mcp.instructions import (
     OTHER_TOOLS,
     PARZLEY_CONCEPTS,
     PROACTIVE_COMMUNICATION,
+    REGISTRATION,
     USER_EXPERIENCE,
 )
 from parzley_mcp.server import mcp
@@ -101,6 +102,8 @@ async def parzley_message_turn(
     {PROACTIVE_COMMUNICATION}
 
     {USER_EXPERIENCE}
+
+    {REGISTRATION}
 
     {FLOW_NEW_SESSION_FIVE_CHAR}
 
