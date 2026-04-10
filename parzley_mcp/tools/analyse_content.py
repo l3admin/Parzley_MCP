@@ -6,7 +6,7 @@ import mimetypes
 import httpx
 
 from parzley_mcp.config import BASE_URL
-from parzley_mcp.instructions import USER_EXPERIENCE
+from parzley_mcp.instructions import PREREQUISITE_START_SESSION, USER_EXPERIENCE
 from parzley_mcp.server import mcp
 
 
@@ -21,6 +21,8 @@ async def analyse_content(
 ) -> dict:
     f"""
     Analyze document content against a user query in a simple, direct way.
+
+    {PREREQUISITE_START_SESSION}
 
     {USER_EXPERIENCE}
 

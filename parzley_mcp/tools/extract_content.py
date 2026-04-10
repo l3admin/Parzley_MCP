@@ -6,7 +6,7 @@ import mimetypes
 import httpx
 
 from parzley_mcp.config import BASE_URL
-from parzley_mcp.instructions import USER_EXPERIENCE
+from parzley_mcp.instructions import PREREQUISITE_START_SESSION, USER_EXPERIENCE
 from parzley_mcp.server import mcp
 
 
@@ -19,6 +19,8 @@ async def extract_content(
 ) -> dict:
     f"""
     Extract raw text / vision description from an uploaded file.
+
+    {PREREQUISITE_START_SESSION}
 
     {USER_EXPERIENCE}
 

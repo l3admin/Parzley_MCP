@@ -12,6 +12,7 @@ from parzley_mcp.instructions import (
     FLOW_RESUME_SIX_CHAR,
     OTHER_TOOLS,
     PARZLEY_CONCEPTS,
+    PREREQUISITE_START_SESSION,
     PROACTIVE_COMMUNICATION,
     REGISTRATION,
     USER_EXPERIENCE,
@@ -96,6 +97,8 @@ async def parzley_message_turn(
 
     This tool is the only MCP surface for those behaviors — do not assume separate
     tools exist for the underlying `/concierge-chat` and `/chat` HTTP endpoints.
+
+    {PREREQUISITE_START_SESSION}
 
     {PARZLEY_CONCEPTS}
 

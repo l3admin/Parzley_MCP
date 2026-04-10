@@ -2,7 +2,7 @@
 
 import httpx
 
-from parzley_mcp.instructions import OTHER_TOOLS
+from parzley_mcp.instructions import OTHER_TOOLS, PREREQUISITE_START_SESSION
 from parzley_mcp.server import mcp
 from parzley_mcp.http_client import _post
 
@@ -12,6 +12,8 @@ async def submit_form_data(shortcode: str, data: dict | None = None) -> dict:
     f"""
     Submit Form Data — final submission: locks the form, persists Parzley-held data, and runs downstream
     workflows. Irreversible — the form cannot be reopened or unsubmitted.
+
+    {PREREQUISITE_START_SESSION}
 
     {OTHER_TOOLS}
 

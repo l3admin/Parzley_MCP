@@ -258,9 +258,19 @@ FLOW_RESUME_SIX_CHAR = _block(
 FLOW_GET_FORM_TOOLS = _block(
     """
     *Getting form structure, and form data information with `get_form_definition` & `get_form_data_by_session` tools*
+
+    **Shortcodes vs `form_id` (common mistake):** `get_form_definition` calls **`GET /forms/{form_id}`** and expects
+    the **long MongoDB `form_id` ObjectId** returned by **`start_session`** (or `get_form_data_by_session`) — **not**
+    a 5- or 6-character **shortcode** (e.g. `oZSUD`). Passing a shortcode as `form_id` is the **wrong endpoint**
+    and typically yields **400** or “not found” from the API. To **resolve** a user’s shortcode and obtain
+    `form_id`, **`session_id`, and `crew_shortcode`**, use **`start_session(shortcode)`** only.
+
     Call `get_form_definition` if the user asks about the form structure, fields, requirements, or how answers should
     look — the response includes `schema`, `uiSchema`, and **`formContext`** (per-field guidance such as
-    validation text and good/bad examples when the form author defined them).
+    validation text and good/bad examples when the form author defined them). **After** a 5-character crew path,
+    prefer **`parzley_message_turn` first** (see **IMPORTANT FLOW**); do not use `get_form_definition` as a substitute
+    for `start_session` or shortcode lookup.
+
     Call `get_form_data_by_session` if the user asks what data is already stored for this session.
     """
 )
@@ -289,6 +299,17 @@ OTHER_TOOLS = _block(
     - **`submit_form_data`:** Final submission when the user is done; locks the form and triggers downstream workflows (see tool description). Pass **`shortcode` = 6-character session code** from `parzley_message_turn` only — **never** the 5-character crew code (API **404** if wrong).
     - **extract_content** / **analyse_content:** User uploads a document or image; files are **base64** in tool args. Often `extract_content` then `analyse_content`.
     - Errors: If a tool returns an `error` field, read it and explain or ask the user to retry as appropriate.
+    """
+)
+
+# --- Fragment for tool docstrings (all tools except `start_session`) ----------------
+
+PREREQUISITE_START_SESSION = _block(
+    """
+    **Prerequisite:** Call **`start_session`** first with the user’s shortcode and wait until it succeeds.
+    Use identifiers from that response (`session_id`, `crew_shortcode`, `form_id`, and — when the flow requires
+    it — the **6-character session shortcode** from **`parzley_message_turn`**). Do not call this tool before
+    a Parzley session has been initiated.
     """
 )
 

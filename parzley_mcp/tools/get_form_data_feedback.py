@@ -1,6 +1,6 @@
 """Feedback on form data quality, gaps, and validation for the current session (not concierge dialogue)."""
 
-from parzley_mcp.instructions import FLOW_PARZLEY_MESSAGE_TURN
+from parzley_mcp.instructions import FLOW_PARZLEY_MESSAGE_TURN, PREREQUISITE_START_SESSION
 from parzley_mcp.server import mcp
 from parzley_mcp.http_client import _get
 
@@ -12,6 +12,8 @@ async def get_form_data_feedback(session_id: str) -> dict:
     validation issues, and answer-quality notes. This complements the concierge in `parzley_message_turn`,
     which guides *what to ask next*; this call surfaces *what is wrong or incomplete* in what has been
     captured so far.
+
+    {PREREQUISITE_START_SESSION}
 
     {FLOW_PARZLEY_MESSAGE_TURN}
 

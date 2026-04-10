@@ -2,7 +2,11 @@
 
 import httpx
 
-from parzley_mcp.instructions import PROACTIVE_COMMUNICATION, REGISTRATION
+from parzley_mcp.instructions import (
+    PREREQUISITE_START_SESSION,
+    PROACTIVE_COMMUNICATION,
+    REGISTRATION,
+)
 from parzley_mcp.server import mcp
 from parzley_mcp.http_client import _post
 
@@ -17,6 +21,8 @@ async def register_respondent(
 ) -> dict:
     f"""
     Register a respondent record linked to the current session.
+
+    {PREREQUISITE_START_SESSION}
 
     Registration is **optional** for continuing in chat but **strongly recommended** so the user can add
     name + **email** and access their data in the **Parzley web app**; see **Registration** below.

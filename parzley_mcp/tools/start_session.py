@@ -6,6 +6,7 @@ import httpx
 
 from parzley_mcp.instructions import (
     FLOW_CONNECT,
+    FLOW_NEW_SESSION_FIVE_CHAR,
     FLOW_START_SESSION,
     INTRO,
     PARZLEY_CONCEPTS,
@@ -26,6 +27,8 @@ async def start_session(shortcode: str) -> dict:
     {FLOW_CONNECT}
 
     {FLOW_START_SESSION}
+
+    {FLOW_NEW_SESSION_FIVE_CHAR}
 
     Shortcodes (quick reference for this tool):
       - **5 characters** — the crew’s form template (empty form); starts a new session (`session_id` is new).
@@ -71,10 +74,16 @@ async def start_session(shortcode: str) -> dict:
             "mission_name": crew_template.get("mission_name"),
             "form_name": crew_template.get("form_name"),
             "message": (
-                f"Session started! Your crew shortcode is '{shortcode}' "
-                f"and your session ID is '{session_id}'. "
-                f"Form: '{crew_template.get('form_name')}' (id: {form_id}). "
-                "You can now start filling out your form — just type your answers."
+                f"Session started with 5-character crew shortcode '{shortcode}' (empty form template). "
+                f"session_id={session_id}, form_id={form_id}, form={crew_template.get('form_name')!r}. "
+                "Documentation (also in this tool's description): the 6-character shortcode is the "
+                "session handle — it appears after the first successful parzley_message_turn "
+                "(see session_shortcode in that response). It identifies this form instance and saved "
+                "answers; users resume with it via start_session; use it for session email "
+                "(the 6-character session code as the local part, e.g. Ab12xY@Parzley.com), "
+                "submit_form_data, and register_respondent as described in PARZLEY CONCEPTS / "
+                "Proactive communication. Required next tool call: parzley_message_turn with a "
+                "welcome/greeting — do not skip it for get_form_definition."
             ),
         }
 
@@ -96,9 +105,11 @@ async def start_session(shortcode: str) -> dict:
                 "form_data_id": form_data_id,
                 "form_id": form_id,
                 "message": (
-                    f"Session started! Resolved shortcode '{shortcode}' → "
-                    f"crew '{crew_shortcode}', session '{session_id}', form '{form_id}'. "
-                    "You can now start filling out your form — just type your answers."
+                    f"Session resumed with 6-character session shortcode '{shortcode}' "
+                    f"(this code identifies this form instance and saved answers). "
+                    f"crew_shortcode={crew_shortcode}, session_id={session_id}, form_id={form_id}. "
+                    f"Proactively share session email {shortcode}@Parzley.com per server instructions; "
+                    "web app URL for viewing data follows registration rules in PARZLEY CONCEPTS."
                 ),
             }
         except httpx.HTTPStatusError as exc:
