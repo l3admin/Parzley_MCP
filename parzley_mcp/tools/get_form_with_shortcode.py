@@ -1,57 +1,57 @@
 """Resolve a crew or session shortcode and start a Parzley form-filling session."""
 
 import uuid
+from typing import Annotated
 
 import httpx
+from pydantic import Field
 
 from parzley_mcp.instructions import (
     FLOW_CONNECT,
+    FLOW_GET_FORM_WITH_SHORTCODE,
     FLOW_NEW_SESSION_FIVE_CHAR,
-    FLOW_START_SESSION,
     INTRO,
     PARZLEY_CONCEPTS,
 )
+from parzley_mcp.mcp_tool_doc import join_tool_doc
 from parzley_mcp.server import mcp
 from parzley_mcp.http_client import _get
 
+_GET_FORM_WITH_SHORTCODE_DESCRIPTION = join_tool_doc(
+    "**When the user gives a 5- or 6-character shortcode, call this tool — not `get_schema`.**",
+    "Start a new Parzley form-filling session and resolve the shortcode to `session_id`, `crew_shortcode`, "
+    "and `form_id`. This MUST be the first Parzley tool called.",
+    INTRO,
+    PARZLEY_CONCEPTS,
+    FLOW_CONNECT,
+    FLOW_GET_FORM_WITH_SHORTCODE,
+    FLOW_NEW_SESSION_FIVE_CHAR,
+    "Shortcodes (quick reference for this tool):",
+    "- **5 characters** — the crew’s form template (empty form); starts a new session (`session_id` is new).",
+    "- **6 characters** — an existing session’s handle: ties to saved form data and a stable "
+    "`session_id` (resume or continue partial/filled work).",
+    "Resolution:",
+    "- 5-character shortcode → used directly as the crew_shortcode; a new session_id is generated automatically.",
+    "- 6-character shortcode → resolved via the Parzley API to obtain both the crew_shortcode and the session_id.",
+    "If the shortcode is invalid (not 5 or 6 characters), an error is returned and you should ask the user to try again.",
+    "**Returns:** On success: `session_id`, `crew_shortcode`, `form_id`, `form_name`, optional `mission_name` "
+    "(API display label for the crew/form), `message`, and for 6-char flows optionally `form_data_id`. On failure: `error`.",
+)
 
-@mcp.tool()
-async def start_session(shortcode: str) -> dict:
-    f"""
-    Start a new Parzley form-filling session. This MUST be the first tool called.
 
-    {INTRO}
-
-    {PARZLEY_CONCEPTS}
-
-    {FLOW_CONNECT}
-
-    {FLOW_START_SESSION}
-
-    {FLOW_NEW_SESSION_FIVE_CHAR}
-
-    Shortcodes (quick reference for this tool):
-      - **5 characters** — the crew’s form template (empty form); starts a new session (`session_id` is new).
-      - **6 characters** — an existing session’s handle: ties to saved form data and a stable
-        `session_id` (resume or continue partial/filled work).
-
-    Resolution:
-      - 5-character shortcode → used directly as the crew_shortcode;
-        a new session_id is generated automatically.
-      - 6-character shortcode → resolved via the Parzley API to obtain
-        both the crew_shortcode and the session_id.
-
-    If the shortcode is invalid (not 5 or 6 characters), an error is returned
-    and you should ask the user to try again.
-
-    Args:
-        shortcode: The 5 or 6 character shortcode provided by the user.
-
-    Returns:
-        On success: `session_id`, `crew_shortcode`, `form_id`, `form_name`, optional `mission_name`
-        (API display label for the crew/form), `message`, and for 6-char
-        flows optionally `form_data_id`. On failure: `error`.
-    """
+@mcp.tool(description=_GET_FORM_WITH_SHORTCODE_DESCRIPTION)
+async def get_form_with_shortcode(
+    shortcode: Annotated[
+        str,
+        Field(
+            description=(
+                "5-character crew code (new empty form) or 6-character session code (resume). "
+                "This is what the user types — not the Mongo form ObjectId."
+            ),
+        ),
+    ],
+) -> dict:
+    """Resolve shortcode and start session; full guidance is in the MCP tool description."""
     shortcode = shortcode.strip()
 
     if len(shortcode) == 5:
@@ -79,11 +79,11 @@ async def start_session(shortcode: str) -> dict:
                 "Documentation (also in this tool's description): the 6-character shortcode is the "
                 "session handle — it appears after the first successful parzley_message_turn "
                 "(see session_shortcode in that response). It identifies this form instance and saved "
-                "answers; users resume with it via start_session; use it for session email "
+                "answers; users resume with it via get_form_with_shortcode; use it for session email "
                 "(the 6-character session code as the local part, e.g. Ab12xY@Parzley.com), "
                 "submit_form_data, and register_respondent as described in PARZLEY CONCEPTS / "
                 "Proactive communication. Required next tool call: parzley_message_turn with a "
-                "welcome/greeting — do not skip it for get_form_definition."
+                "welcome/greeting — do not skip it for get_schema."
             ),
         }
 

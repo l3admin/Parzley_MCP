@@ -37,16 +37,16 @@
 #            - After ANY data is submitted to the form the `parzley_message_turn` tool will return the 6 char code for the form
 #            - ALWAYS use the 6 char if it exists to return the session_id
 #            - The 6 char code will always link to the same session_id
-#         2. Call `start_session` with the shortcode they provide. This returns
+#         2. Call `get_form_with_shortcode` with the shortcode they provide. This returns
 #            `session_id`, `crew_shortcode`, and `form_id` — store these for the entire conversation.
-#         3. The `form_id` is included in the `start_session` response for both shortcode types.
-#            Only call `get_form_definition` if the user explicitly asks about the form structure, fields,
+#         3. The `form_id` is included in the `get_form_with_shortcode` response for both shortcode types.
+#            Only call `get_schema` if the user explicitly asks about the form structure, fields,
 #            or requirements (e.g. "how many fields?", "what does this form ask?").
 #            Only call `get_form_data_by_session` if the user asks what they have already filled in.
 #         4. On EVERY subsequent user message, call `parzley_message_turn` — it automatically fires
 #            both the concierge agent and the background parser/QA agents in parallel.
 #            Use `concierge` from the response as the reply to show the user.
-#         Do NOT call any other tool until `start_session` has succeeded."""
+#         Do NOT call any other tool until `get_form_with_shortcode` has succeeded."""
 # )
 #
 #
@@ -87,7 +87,7 @@
 # # ---------------------------------------------------------------------------
 #
 # @mcp.tool()
-# async def start_session(shortcode: str) -> dict:
+# async def get_form_with_shortcode(shortcode: str) -> dict:
 #     """
 #     Start a new Parzley form-filling session. This MUST be the first tool called.
 #
@@ -178,7 +178,7 @@
 #     the session, including which fields the user has filled out so far.
 #
 #     Args:
-#         session_id: The session ID returned by start_session.
+#         session_id: The session ID returned by get_form_with_shortcode.
 #
 #     Returns:
 #         Form data record with id, form_id, user_id, session_id, data (field values),
@@ -188,7 +188,7 @@
 #
 #
 # @mcp.tool()
-# async def get_form_definition(form_id: str) -> dict:
+# async def get_schema(form_id: str) -> dict:
 #     """
 #     Retrieve the full form definition for a given form ID.
 #
@@ -234,12 +234,12 @@
 #     simultaneously in a single call.
 #
 #     This is the ONLY tool you need to call on every user message after
-#     start_session. It runs both API calls in parallel and returns their
+#     get_form_with_shortcode. It runs both API calls in parallel and returns their
 #     combined responses.
 #
 #     Args:
-#         session_id: Session ID returned by start_session.
-#         crew_shortcode: Crew shortcode returned by start_session.
+#         session_id: Session ID returned by get_form_with_shortcode.
+#         crew_shortcode: Crew shortcode returned by get_form_with_shortcode.
 #         message: The user's message or answer.
 #         form_data: Current form data dict (field → value). Pass the latest
 #                    known state so the agents have full context.
@@ -322,7 +322,7 @@
 #     Args:
 #         file_base64: The file contents encoded as a base64 string.
 #         file_name: Original filename including extension (e.g. "resume.pdf").
-#         session_id: Session ID returned by start_session.
+#         session_id: Session ID returned by get_form_with_shortcode.
 #         form_id: The ID of the form to extract content for.
 #
 #     Returns:
@@ -362,7 +362,7 @@
 #     Args:
 #         file_base64: The file contents encoded as a base64 string.
 #         file_name: Original filename including extension (e.g. "resume.pdf").
-#         session_id: Session ID returned by start_session.
+#         session_id: Session ID returned by get_form_with_shortcode.
 #         user_query: The user's query describing what to analyse / extract.
 #         form_id: Optional — the form ID to analyse content against.
 #         extraction_field: Optional — a specific field to target for extraction.

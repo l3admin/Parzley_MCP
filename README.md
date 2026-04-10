@@ -98,10 +98,10 @@ If deploy still says **“Build image”** or Docker, switch the service **off**
 
 | Tool | Description |
 |---|---|
-| `start_session` | Resolve a shortcode and start a new form-filling session. Must be called first. |
-| `parzley_message_turn` | Single MCP call that runs `concierge_chat` and `chat_with_agents` in parallel — use on every user message after `start_session`. |
+| `get_form_with_shortcode` | Resolve a shortcode and start a new form-filling session. Must be called first. |
+| `parzley_message_turn` | Single MCP call that runs `concierge_chat` and `chat_with_agents` in parallel — use on every user message after `get_form_with_shortcode`. |
 | `register_respondent` | Link name + email to the session. **Optional** in chat — **strongly recommended** so the user can open and manage their answers in the **Parzley web app** (browser access is tied to that email). Call after the first successful `parzley_message_turn` when the user agrees. |
-| `get_form_definition` | Fetch the full form definition (`schema`, `uiSchema`, `formContext`, etc.) for a `form_id`. |
+| `get_schema` | Fetch the full form definition (`schema`, `uiSchema`, `formContext`, etc.) for a MongoDB **`form_object_id`** (not a shortcode). |
 | `get_form_data_by_session` | Fetch field values already saved for a `session_id`. |
 | `get_form_data_feedback` | Feedback on form data quality, gaps, and validation for the session (errors and shortfalls vs concierge “what to ask next”). |
 | `submit_form_data` | Final submission (locks the form); use the 6-character session `shortcode`. |
@@ -116,7 +116,7 @@ If deploy still says **“Build image”** or Docker, switch the service **off**
 User provides shortcode
         │
         ▼
-  start_session(shortcode)
+  get_form_with_shortcode(shortcode)
   ── returns session_id + crew_shortcode
         │
         ▼
@@ -132,7 +132,7 @@ User provides shortcode
 
 | Length | Role | Behaviour |
 |---|---|---|
-| **5 chars** | Crew / empty template | Identifies the **empty** form for that crew; `start_session` starts work against that template. Sending data via `parzley_message_turn` creates a **6-character** session. |
+| **5 chars** | Crew / empty template | Identifies the **empty** form for that crew; `get_form_with_shortcode` starts work against that template. Sending data via `parzley_message_turn` creates a **6-character** session. |
 | **6 chars** | Session + saved data | Identifies a specific form instance and answers. Resolved via the API to `crew_shortcode` and `session_id` for resume. |
 
 ---
@@ -148,7 +148,7 @@ and send them to Parzley as `multipart/form-data` with the raw binary.
 |---|---|---|
 | `file_base64` | string | Base64-encoded file contents |
 | `file_name` | string | Original filename with extension (e.g. `resume.pdf`) |
-| `session_id` | string | Session ID from `start_session` |
+| `session_id` | string | Session ID from `get_form_with_shortcode` |
 | `form_id` | string | Form ID to extract content for |
 
 **`analyse_content`** — required + optional fields:
@@ -157,7 +157,7 @@ and send them to Parzley as `multipart/form-data` with the raw binary.
 |---|---|---|---|
 | `file_base64` | string | ✅ | Base64-encoded file contents |
 | `file_name` | string | ✅ | Original filename with extension |
-| `session_id` | string | ✅ | Session ID from `start_session` |
+| `session_id` | string | ✅ | Session ID from `get_form_with_shortcode` |
 | `user_query` | string | ✅ | Query describing what to extract / analyse |
 | `form_id` | string | ❌ | Form ID to analyse content against |
 | `extraction_field` | string | ❌ | Specific field to target for extraction |
@@ -172,7 +172,7 @@ Once connected, try:
 
 Claude will:
 1. Ask for your shortcode
-2. Call `start_session` with the shortcode you provide
+2. Call `get_form_with_shortcode` with the shortcode you provide
 3. Store `session_id` and `crew_shortcode` for the session
 4. Call `parzley_message_turn` on every message (it runs the concierge + agent APIs in parallel)
 5. Guide you through the form question by question
@@ -207,4 +207,4 @@ python -m unittest tests.test_smoke -v
 | Server crashes on start | Run `python main.py` in a terminal to see the error |
 | **502** on Railway / reverse proxy | Confirm **`main.py`** is running, **`PORT`** matches the platform, and the start command is correct (see **Railway** above). |
 | File upload fails | Ensure the file is properly base64-encoded and `file_name` has the correct extension |
-| Client says **`start_session` is missing** but lists other Parzley tools | The server registers **all 9 tools** (see `parzley_mcp/tools/`). The client may be **filtering** or **searching** a subset — open the **full** MCP tool list, reconnect the server, or turn off tool search for the first step. **`start_session` must run first** with the user’s shortcode. |
+| Client says **`get_form_with_shortcode` is missing** but lists other Parzley tools | The server registers **all 9 tools** (see `parzley_mcp/tools/`). The client may be **filtering** or **searching** a subset — open the **full** MCP tool list, reconnect the server, or turn off tool search for the first step. **`get_form_with_shortcode` must run first** with the user’s shortcode. |

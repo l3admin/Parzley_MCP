@@ -2,50 +2,38 @@
 
 import base64
 import mimetypes
+from typing import Annotated
 
 import httpx
+from pydantic import Field
 
 from parzley_mcp.config import BASE_URL
-from parzley_mcp.instructions import PREREQUISITE_START_SESSION, USER_EXPERIENCE
+from parzley_mcp.instructions import PREREQUISITE_GET_FORM_WITH_SHORTCODE, USER_EXPERIENCE
+from parzley_mcp.mcp_tool_doc import join_tool_doc
 from parzley_mcp.server import mcp
 
+_ANALYSE_CONTENT_DESCRIPTION = join_tool_doc(
+    "Analyze document content against a user query in a simple, direct way.",
+    PREREQUISITE_GET_FORM_WITH_SHORTCODE,
+    USER_EXPERIENCE,
+    "For a single huge document the user wants handled as one piece, prefer suggesting email to shortcode@Parzley.com; "
+    "otherwise process in reasonable pieces and keep the user informed.",
+    "Use this after extract_content to intelligently match extracted data to form fields. "
+    "Multipart upload with session_id and user_query. Does NOT require authentication.",
+    "**Returns:** Analysis result with suggested field mappings.",
+)
 
-@mcp.tool()
+
+@mcp.tool(description=_ANALYSE_CONTENT_DESCRIPTION)
 async def analyse_content(
-    file_base64: str,
-    file_name: str,
-    session_id: str,
-    user_query: str,
-    form_id: str | None = None,
-    extraction_field: str | None = None,
+    file_base64: Annotated[str, Field(description="File contents as base64.")],
+    file_name: Annotated[str, Field(description="Original filename with extension.")],
+    session_id: Annotated[str, Field(description="Session ID from get_form_with_shortcode.")],
+    user_query: Annotated[str, Field(description="What to extract or how to map content to the form.")],
+    form_id: Annotated[str | None, Field(description="Optional Mongo form ObjectId to analyse against.")] = None,
+    extraction_field: Annotated[str | None, Field(description="Optional single field to target.")] = None,
 ) -> dict:
-    f"""
-    Analyze document content against a user query in a simple, direct way.
-
-    {PREREQUISITE_START_SESSION}
-
-    {USER_EXPERIENCE}
-
-    For a single huge document the user wants handled as one piece, prefer suggesting email to
-    ``shortcode@Parzley.com`` (attachment or pasted body) (see **User experience** above); otherwise process in
-    reasonable pieces and keep the user informed.
-
-    Use this after extract_content to intelligently match extracted data
-    to the fields of a specific form. Accepts a file upload via
-    multipart/form-data along with a session_id and user_query.
-    Does NOT require authentication.
-
-    Args:
-        file_base64: The file contents encoded as a base64 string.
-        file_name: Original filename including extension (e.g. "resume.pdf").
-        session_id: Session ID returned by start_session.
-        user_query: The user's query describing what to analyse / extract.
-        form_id: Optional — the form ID to analyse content against.
-        extraction_field: Optional — a specific field to target for extraction.
-
-    Returns:
-        Analysis result with suggested field mappings.
-    """
+    """Analyse upload against query; full guidance is in the MCP tool description."""
     file_bytes = base64.b64decode(file_base64)
     mime_type = mimetypes.guess_type(file_name)[0] or "application/octet-stream"
 

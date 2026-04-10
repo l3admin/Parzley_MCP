@@ -2,47 +2,37 @@
 
 import base64
 import mimetypes
+from typing import Annotated
 
 import httpx
+from pydantic import Field
 
 from parzley_mcp.config import BASE_URL
-from parzley_mcp.instructions import PREREQUISITE_START_SESSION, USER_EXPERIENCE
+from parzley_mcp.instructions import PREREQUISITE_GET_FORM_WITH_SHORTCODE, USER_EXPERIENCE
+from parzley_mcp.mcp_tool_doc import join_tool_doc
 from parzley_mcp.server import mcp
 
+_EXTRACT_CONTENT_DESCRIPTION = join_tool_doc(
+    "Extract raw text / vision description from an uploaded file.",
+    PREREQUISITE_GET_FORM_WITH_SHORTCODE,
+    USER_EXPERIENCE,
+    "If the user needs one full document delivered in a single step, suggest they email shortcode@Parzley.com "
+    "(their 6-character code) with the file attached or long text in the body.",
+    "Runs LlamaParse for PDFs or VisionAgent (Groq) for images. Does NOT run validation — use analyse_content for that. "
+    "Does NOT require authentication.",
+    "The endpoint expects multipart/form-data with the file binary, session_id, and form_id.",
+    "**Returns:** Extraction result with raw text and/or vision description.",
+)
 
-@mcp.tool()
+
+@mcp.tool(description=_EXTRACT_CONTENT_DESCRIPTION)
 async def extract_content(
-    file_base64: str,
-    file_name: str,
-    session_id: str,
-    form_id: str,
+    file_base64: Annotated[str, Field(description="File contents as base64.")],
+    file_name: Annotated[str, Field(description='Original filename with extension (e.g. "resume.pdf").')],
+    session_id: Annotated[str, Field(description="Session ID from get_form_with_shortcode.")],
+    form_id: Annotated[str, Field(description="Mongo form ObjectId for this session (from get_form_with_shortcode).")],
 ) -> dict:
-    f"""
-    Extract raw text / vision description from an uploaded file.
-
-    {PREREQUISITE_START_SESSION}
-
-    {USER_EXPERIENCE}
-
-    If the user needs one full document delivered in a single step, suggest they email ``shortcode@Parzley.com``
-    (their 6-character code) with the file attached or long text in the body (see **User experience** above).
-
-    Runs LlamaParse for PDFs or VisionAgent (Groq) for images.
-    Does NOT run validation — use analyse_content for that.
-    Does NOT require authentication.
-
-    The endpoint expects multipart/form-data with the file binary,
-    session_id, and form_id.
-
-    Args:
-        file_base64: The file contents encoded as a base64 string.
-        file_name: Original filename including extension (e.g. "resume.pdf").
-        session_id: Session ID returned by start_session.
-        form_id: The ID of the form to extract content for.
-
-    Returns:
-        Extraction result with raw text and/or vision description.
-    """
+    """Upload file for extraction; full guidance is in the MCP tool description."""
     file_bytes = base64.b64decode(file_base64)
     mime_type = mimetypes.guess_type(file_name)[0] or "application/octet-stream"
 

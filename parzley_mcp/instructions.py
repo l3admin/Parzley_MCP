@@ -21,12 +21,12 @@ INTRO = _block(
     """
     You have access to Parzley — an AI-powered data collection (form filling) platform.
 
-    **Tool set (9 tools, always registered):** `start_session`, `parzley_message_turn`,
-    `register_respondent`, `get_form_definition`, `get_form_data_by_session`, `get_form_data_feedback`,
+    **Tool set (9 tools, always registered):** `get_form_with_shortcode`, `parzley_message_turn`,
+    `register_respondent`, `get_schema`, `get_form_data_by_session`, `get_form_data_feedback`,
     `submit_form_data`, `extract_content`, `analyse_content`. Some chat clients show only a **subset** of
-    tools when you “search” or filter tools — that is a **UI limitation**, not an absent API. **`start_session`
+    tools when you “search” or filter tools — that is a **UI limitation**, not an absent API. **`get_form_with_shortcode`
     is always available** on the Parzley MCP server. Use the full tool list / disable overly narrow tool search
-    when beginning a flow. **You MUST call `start_session` first** with the user’s shortcode before any other
+    when beginning a flow. **You MUST call `get_form_with_shortcode` first** with the user’s shortcode before any other
     Parzley tool that needs `session_id` or `crew_shortcode`.
     """
 )
@@ -37,20 +37,20 @@ PARZLEY_CONCEPTS = _block(
 
     - **Crew:** Represented by the **5-character shortcode**. It pairs a **concierge agent** (manages
       the interaction between the user and Parzley) with the **form schema** (defines what data is
-      collected). Pass **`crew_shortcode`** from `start_session` into `parzley_message_turn`; use the
+      collected). Pass **`crew_shortcode`** from `get_form_with_shortcode` into `parzley_message_turn`; use the
       **`concierge`** field in the response as the user-facing reply.
 
     - **5-character shortcode (crew / empty form):** Identifies the **form template only** — the form is
       **always empty** at this code. Use it when the user starts fresh. You can learn **what the form asks**
       (structure, fields) via tools; there is **no** saved respondent data tied to this code alone.
-      `start_session` with this code starts work against that empty template.
+      `get_form_with_shortcode` with this code starts work against that empty template.
 
     - **Creating the 6-character session:** The first time you send user content into that empty template
-      (e.g. the required welcome `parzley_message_turn` after `start_session`), Parzley creates a **6-character
+      (e.g. the required welcome `parzley_message_turn` after `get_form_with_shortcode`), Parzley creates a **6-character
       session shortcode**. That code identifies **this form instance plus the user’s saved answers** (work in
       progress or complete). It always resolves to the same `session_id` and underlying `crew_shortcode`.
 
-    - **6-character shortcode (session + data):** Use it with `start_session` whenever the user provides it
+    - **6-character shortcode (session + data):** Use it with `get_form_with_shortcode` whenever the user provides it
       so the correct session is loaded. **Registration is separate:** a 6-character code can exist **before**
       the user registers — do not assume “6-character ⇒ already registered.” When **resuming** with a code the
       user already used in Parzley, they are usually already registered; **do not** ask for name/email or call
@@ -66,7 +66,7 @@ PARZLEY_CONCEPTS = _block(
       their session in the meantime. **Encourage** registration (name + **email**) when appropriate so users
       who want the **web form / app** can get it — chat never requires it; see **Registration**.
 
-    - **API field `mission_name`:** Some `start_session` responses include this key (legacy Parzley
+    - **API field `mission_name`:** Some `get_form_with_shortcode` responses include this key (legacy Parzley
       name). Treat it as an optional display label for the crew/form setup; prefer explaining things
       to users in terms of the form and shortcodes.
 
@@ -185,7 +185,7 @@ REGISTRATION = _block(
       ask for name/email or call `register_respondent` unless a tool error indicates registration is missing.
 
     - **Calling the tool:** From the latest `parzley_message_turn`, prefer **`session_id_from_api`** and
-      **`session_shortcode`** as `session_id` and `shortcode`; otherwise use `session_id` from `start_session`.
+      **`session_shortcode`** as `session_id` and `shortcode`; otherwise use `session_id` from `get_form_with_shortcode`.
       Omitting **`session_shortcode`** often fails. Pass `first_name`, `last_name`, `email`.
     """
 )
@@ -197,16 +197,16 @@ FLOW_CONNECT = _block(
     *Connect to the correct schema or form and data*
     When a user begins a session, greet them with a friendly welcome message and ask them to provide their shortcode (5 or 6 characters).
        - A **5-character** code is the **empty** form template for that crew — no saved answers yet; you can learn form structure, but the template stays empty until you send data through Parzley.
-       - Sending content via `parzley_message_turn` (after `start_session`) **creates** a **6-character** code that identifies **this form instance plus the user’s data** in Parzley.
-       - A **6-character** code the user already has loads that **same** session and data; use it with `start_session` so `session_id` resolves correctly.
+       - Sending content via `parzley_message_turn` (after `get_form_with_shortcode`) **creates** a **6-character** code that identifies **this form instance plus the user’s data** in Parzley.
+       - A **6-character** code the user already has loads that **same** session and data; use it with `get_form_with_shortcode` so `session_id` resolves correctly.
        - You MUST have a shortcode to connect to a schema or form or collect / insert data.
     """
 )
 
-FLOW_START_SESSION = _block(
+FLOW_GET_FORM_WITH_SHORTCODE = _block(
     """
     *Start the Parzley session & retrieve required reference IDs*
-    Call `start_session` with the shortcode the user provides. This returns `session_id`, `crew_shortcode`, and `form_id` — store these for the entire conversation.
+    Call `get_form_with_shortcode` with the shortcode the user provides. This returns `session_id`, `crew_shortcode`, and `form_id` — store these for the entire conversation.
        - Users do not see internal IDs (`session_id`, `form_id`). They know a **5- or 6-character shortcode**; when starting with a 5-char code, that code *is* the crew shortcode until a 6-char code is issued.
     """
 )
@@ -214,7 +214,7 @@ FLOW_START_SESSION = _block(
 FLOW_NEW_SESSION_FIVE_CHAR = _block(
     """
     *Initiate new sessions (using 5 char code): create unique 6 char code, then email + registration invite*
-    If a 5 char code is provided by the user, after `start_session` succeeds,
+    If a 5 char code is provided by the user, after `get_form_with_shortcode` succeeds,
        - IMMEDIATELY call `parzley_message_turn` with a friendly welcome/greeting as the message. This call is REQUIRED because it creates the unique user session and associated 6 char code.
        - Store the returned 6-character shortcode in the response — it will be used for the rest of the session.
        - Use `concierge` from the response as the reply to show the user. This provides a specific welcome message (set by the form creator) and hint for which data can be collected first.
@@ -233,7 +233,7 @@ FLOW_RESUME_SIX_CHAR = _block(
     """
     *Resume with a 6-character shortcode (user already registered)*
 
-    If the user provides a **6-character** shortcode, after `start_session` succeeds:
+    If the user provides a **6-character** shortcode, after `get_form_with_shortcode` succeeds:
        - **Do not** ask for first name, last name, or email — respondent data is already tied to this session.
        - **Do not** call `register_respondent`.
        - Call `parzley_message_turn` to continue the conversation and form-filling as usual. **MUST** give the
@@ -245,19 +245,19 @@ FLOW_RESUME_SIX_CHAR = _block(
 
 FLOW_GET_FORM_TOOLS = _block(
     """
-    *Getting form structure, and form data information with `get_form_definition` & `get_form_data_by_session` tools*
+    *Getting form structure, and form data information with `get_schema` & `get_form_data_by_session` tools*
 
-    **Shortcodes vs `form_id` (common mistake):** `get_form_definition` calls **`GET /forms/{form_id}`** and expects
-    the **long MongoDB `form_id` ObjectId** returned by **`start_session`** (or `get_form_data_by_session`) — **not**
-    a 5- or 6-character **shortcode** (e.g. `oZSUD`). Passing a shortcode as `form_id` is the **wrong endpoint**
+    **Shortcodes vs `form_object_id` (common mistake):** `get_schema` calls **`GET /forms/{form_object_id}`** and expects
+    the **long MongoDB form ObjectId** returned by **`get_form_with_shortcode`** (or `get_form_data_by_session`) — **not**
+    a 5- or 6-character **shortcode** (e.g. `oZSUD`). Passing a shortcode as `form_object_id` is the **wrong endpoint**
     and typically yields **400** or “not found” from the API. To **resolve** a user’s shortcode and obtain
-    `form_id`, **`session_id`, and `crew_shortcode`**, use **`start_session(shortcode)`** only.
+    `form_id`, **`session_id`, and `crew_shortcode`**, use **`get_form_with_shortcode(shortcode)`** only.
 
-    Call `get_form_definition` if the user asks about the form structure, fields, requirements, or how answers should
+    Call `get_schema` if the user asks about the form structure, fields, requirements, or how answers should
     look — the response includes `schema`, `uiSchema`, and **`formContext`** (per-field guidance such as
     validation text and good/bad examples when the form author defined them). **After** a 5-character crew path,
-    prefer **`parzley_message_turn` first** (see **IMPORTANT FLOW**); do not use `get_form_definition` as a substitute
-    for `start_session` or shortcode lookup.
+    prefer **`parzley_message_turn` first** (see **IMPORTANT FLOW**); do not use `get_schema` as a substitute
+    for `get_form_with_shortcode` or shortcode lookup.
 
     Call `get_form_data_by_session` if the user asks what data is already stored for this session.
     """
@@ -272,7 +272,7 @@ FLOW_PARZLEY_MESSAGE_TURN = _block(
       - Use `concierge` from the response as the reply to show the user.
       - **`get_form_data_feedback` — cadence (mandatory):** After every **second** `parzley_message_turn` in this session (i.e. immediately after the **2nd, 4th, 6th, …** call completes — count all `parzley_message_turn` calls from the start of the session, including the first welcome/greeting if you made one), you **MUST** call `get_form_data_feedback` with the same `session_id`. It surfaces **feedback** on errors, shortfalls, and answer quality (e.g. missing data, incorrect data, validation issues) — not the concierge’s next-step prompts.
       - Pass updated `form_data` / `conversation_history` when you have them so agents stay in sync.
-      - Do NOT call any other tool until `start_session` has succeeded.
+      - Do NOT call any other tool until `get_form_with_shortcode` has succeeded.
       - **5-character path:** Do NOT call `register_respondent` before the first `parzley_message_turn` has
         succeeded. Once **`session_shortcode`** appears, your **next user-facing message** **MUST** include the
         **registration invitation** (and session email) per **Registration** — **do not** defer it across many
@@ -292,11 +292,11 @@ OTHER_TOOLS = _block(
     """
 )
 
-# --- Fragment for tool docstrings (all tools except `start_session`) ----------------
+# --- Fragment for tool docstrings (all tools except `get_form_with_shortcode`) ----------------
 
-PREREQUISITE_START_SESSION = _block(
+PREREQUISITE_GET_FORM_WITH_SHORTCODE = _block(
     """
-    **Prerequisite:** Call **`start_session`** first with the user’s shortcode and wait until it succeeds.
+    **Prerequisite:** Call **`get_form_with_shortcode`** first with the user’s shortcode and wait until it succeeds.
     Use identifiers from that response (`session_id`, `crew_shortcode`, `form_id`, and — when the flow requires
     it — the **6-character session shortcode** from **`parzley_message_turn`**). Do not call this tool before
     a Parzley session has been initiated.
@@ -307,7 +307,7 @@ IMPORTANT_FLOW = "\n\n".join(
     [
         "IMPORTANT FLOW:",
         FLOW_CONNECT,
-        FLOW_START_SESSION,
+        FLOW_GET_FORM_WITH_SHORTCODE,
         FLOW_NEW_SESSION_FIVE_CHAR,
         FLOW_RESUME_SIX_CHAR,
         FLOW_GET_FORM_TOOLS,
