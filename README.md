@@ -207,3 +207,4 @@ python -m unittest tests.test_smoke -v
 | Server crashes on start | Run `python main.py` in a terminal to see the error |
 | **502** on Railway / reverse proxy | Confirm **`main.py`** is running, **`PORT`** matches the platform, and the start command is correct (see **Railway** above). |
 | File upload fails | Ensure the file is properly base64-encoded and `file_name` has the correct extension |
+| Client says **`start_session` is missing** but lists other Parzley tools | The server registers **all 9 tools** (see `parzley_mcp/tools/`). The client may be **filtering** or **searching** a subset — open the **full** MCP tool list, reconnect the server, or turn off tool search for the first step. **`start_session` must run first** with the user’s shortcode. |

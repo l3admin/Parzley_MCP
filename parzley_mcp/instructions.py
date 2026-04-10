@@ -20,6 +20,14 @@ def _block(text: str) -> str:
 INTRO = _block(
     """
     You have access to Parzley — an AI-powered data collection (form filling) platform.
+
+    **Tool set (9 tools, always registered):** `start_session`, `parzley_message_turn`,
+    `register_respondent`, `get_form_definition`, `get_form_data_by_session`, `get_form_data_feedback`,
+    `submit_form_data`, `extract_content`, `analyse_content`. Some chat clients show only a **subset** of
+    tools when you “search” or filter tools — that is a **UI limitation**, not an absent API. **`start_session`
+    is always available** on the Parzley MCP server. Use the full tool list / disable overly narrow tool search
+    when beginning a flow. **You MUST call `start_session` first** with the user’s shortcode before any other
+    Parzley tool that needs `session_id` or `crew_shortcode`.
     """
 )
 
@@ -278,7 +286,7 @@ OTHER_TOOLS = _block(
     """
     OTHER TOOLS (on demand — not part of every turn):
 
-    - **`submit_form_data`:** Final submission when the user is done; locks the form and triggers downstream workflows (see tool description). Typically use the **6-character shortcode** as `shortcode`.
+    - **`submit_form_data`:** Final submission when the user is done; locks the form and triggers downstream workflows (see tool description). Pass **`shortcode` = 6-character session code** from `parzley_message_turn` only — **never** the 5-character crew code (API **404** if wrong).
     - **extract_content** / **analyse_content:** User uploads a document or image; files are **base64** in tool args. Often `extract_content` then `analyse_content`.
     - Errors: If a tool returns an `error` field, read it and explain or ask the user to retry as appropriate.
     """
