@@ -1,8 +1,20 @@
 """
-Chat tool — fires concierge + background agents simultaneously.
+Send one user turn to Parzley — concierge + parser/QA agents in parallel.
+
+This is the primary tool for ongoing conversation after `start_session`.
 """
 
 import asyncio
+
+from parzley_mcp.instructions import (
+    FLOW_NEW_SESSION_FIVE_CHAR,
+    FLOW_PARZLEY_MESSAGE_TURN,
+    FLOW_RESUME_SIX_CHAR,
+    OTHER_TOOLS,
+    PARZLEY_CONCEPTS,
+    PROACTIVE_COMMUNICATION,
+    USER_EXPERIENCE,
+)
 from parzley_mcp.server import mcp
 from parzley_mcp.http_client import _post
 
@@ -64,7 +76,7 @@ def _merge_session_hints(
 
 
 @mcp.tool()
-async def send_message(
+async def parzley_message_turn(
     session_id: str,
     crew_shortcode: str,
     message: str,
@@ -72,7 +84,7 @@ async def send_message(
     conversation_history: list | None = None,
     is_voice_mode: bool = False,
 ) -> dict:
-    """
+    f"""
     Send a user message to Parzley — fires concierge_chat AND chat_with_agents
     simultaneously in a single call. The concierge is the admin-configured agent
     for the crew’s form; it runs the user-facing dialogue (use its reply for the user).
@@ -84,24 +96,38 @@ async def send_message(
     This tool is the only MCP surface for those behaviors — do not assume separate
     tools exist for the underlying `/concierge-chat` and `/chat` HTTP endpoints.
 
+    {PARZLEY_CONCEPTS}
+
+    {PROACTIVE_COMMUNICATION}
+
+    {USER_EXPERIENCE}
+
+    {FLOW_NEW_SESSION_FIVE_CHAR}
+
+    {FLOW_RESUME_SIX_CHAR}
+
+    {FLOW_PARZLEY_MESSAGE_TURN}
+
+    {OTHER_TOOLS}
+
     Args:
         session_id: Session ID returned by start_session.
         crew_shortcode: Crew shortcode returned by start_session.
         message: The user's message or answer. For very long pastes, split at paragraph boundaries (~two
             paragraphs per chunk is a good target), send with successive calls, and tell the user — or
-            suggest email to ``shortcode@Parzley.com`` for one attachment/body paste (see server instructions).
+            suggest email to ``shortcode@Parzley.com`` for one attachment/body paste (per **User experience** above).
         form_data: Current form data dict (field → value). Pass the latest
                    known state so the agents have full context.
-        conversation_history: Full prior conversation as { role, content } dicts.
+        conversation_history: Full prior conversation as {{ role, content }} dicts.
         is_voice_mode: Set True if the user is interacting via voice/TTS.
 
     Returns:
-        {
+        {{
           "concierge": <ConciergeAgentResponse>,   ← use this for the reply to the user
           "agents":    <ParserAndQAResponse>,       ← background form-data updates
-          "session_id_from_api": optional — if present, prefer this for ``create_respondent`` ``session_id``,
-          "session_shortcode": optional — 6-character session code; pass to ``create_respondent`` as ``shortcode``
-        }
+          "session_id_from_api": optional — if present, prefer this for ``register_respondent`` ``session_id``,
+          "session_shortcode": optional — 6-character session code; pass to ``register_respondent`` as ``shortcode``
+        }}
     """
     concierge_payload = {
         "session_id": session_id,
@@ -134,4 +160,3 @@ async def send_message(
     hints = _merge_session_hints(c_ok, a_ok)
     out.update(hints)
     return out
-

@@ -1,16 +1,17 @@
-"""
-Final form submission — trigger lock and downstream workflows.
-"""
+"""Final form submission — lock session and run downstream workflows."""
 
+from parzley_mcp.instructions import OTHER_TOOLS
 from parzley_mcp.server import mcp
 from parzley_mcp.http_client import _post
 
 
 @mcp.tool()
 async def submit_form_data(shortcode: str, data: dict | None = None) -> dict:
-    """
+    f"""
     Submit Form Data — final submission: locks the form, persists Parzley-held data, and runs downstream
     workflows. Irreversible — the form cannot be reopened or unsubmitted.
+
+    {OTHER_TOOLS}
 
     Pass ``data`` only if the API needs extra display metadata; otherwise omit it or
     pass null — form field values are already stored server-side.

@@ -70,17 +70,19 @@ docker run -p 8001:8001 parzley-mcp
 
 ---
 
-## Available tools (7 total)
+## Available tools (9 total)
 
 | Tool | Description |
 |---|---|
 | `start_session` | Resolve a shortcode and start a new form-filling session. Must be called first. |
-| `concierge_chat` | Chat with the AI concierge agent to guide the user through filling the form. Call on every user message. |
-| `chat_with_agents` | Send a message to the parallel parser + QA agent pipeline. Call alongside `concierge_chat` on every user message. |
-| `get_editor_suggestion` | Retrieve the current structured document output for a session. |
+| `parzley_message_turn` | Single MCP call that runs `concierge_chat` and `chat_with_agents` in parallel — use on every user message after `start_session`. |
+| `register_respondent` | Optional: register name and email for the session (after the first `parzley_message_turn` when the user agrees). |
+| `get_form_definition` | Fetch the full form definition (`schema`, `uiSchema`, `formContext`, etc.) for a `form_id`. |
+| `get_form_data_by_session` | Fetch field values already saved for a `session_id`. |
+| `get_form_data_feedback` | Feedback on form data quality, gaps, and validation for the session (errors and shortfalls vs concierge “what to ask next”). |
+| `submit_form_data` | Final submission (locks the form); use the 6-character session `shortcode`. |
 | `extract_content` | Upload a file (PDF or image) to extract raw text / vision description via LlamaParse or VisionAgent (Groq). |
 | `analyse_content` | Upload a file and analyse its content against a user query to map data to form fields. |
-| `submit_response_display` | Push rendered output/display data for a shortcode after a session completes. |
 
 ---
 
@@ -94,14 +96,11 @@ User provides shortcode
   ── returns session_id + crew_shortcode
         │
         ▼
-  On EVERY user message (in parallel):
-  ┌─────────────────────────────────┐
-  │  concierge_chat(session_id, …)  │  ← collects answers, drives the form
-  │  chat_with_agents(session_id, …)│  ← parser + QA agents
-  └─────────────────────────────────┘
+  On EVERY user message:
+        parzley_message_turn(session_id, …)  ← MCP tool; runs concierge_chat + chat_with_agents in parallel
         │
         ▼
-  get_editor_suggestion(session_id)
+  get_form_data_feedback(session_id)
   ── returns structured document output
 ```
 
@@ -151,9 +150,9 @@ Claude will:
 1. Ask for your shortcode
 2. Call `start_session` with the shortcode you provide
 3. Store `session_id` and `crew_shortcode` for the session
-4. Call `concierge_chat` + `chat_with_agents` in parallel on every message
+4. Call `parzley_message_turn` on every message (it runs the concierge + agent APIs in parallel)
 5. Guide you through the form question by question
-6. Call `get_editor_suggestion` to retrieve the final structured output
+6. Call `get_form_data_feedback` when you need structured feedback on data quality / gaps
 
 ---
 
@@ -161,8 +160,7 @@ Claude will:
 
 - **Timeouts**: File upload tools (`extract_content`, `analyse_content`) use a
   120-second timeout. All other tools use 60 seconds.
-- **Parallel calls**: `concierge_chat` and `chat_with_agents` **must** be called
-  simultaneously on every user message — never one without the other.
+- **Parallel calls**: The `parzley_message_turn` tool invokes both HTTP endpoints together; do not call them separately from MCP.
 
 ---
 
