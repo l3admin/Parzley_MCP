@@ -77,20 +77,19 @@ python main.py --transport sse --port 8001
 
 ---
 
-### Docker (production)
+### Docker (optional)
 
-A **`Dockerfile`** is included. It installs the package and runs **`main.py`** with HTTP transport:
-
-```bash
-docker build -t parzley-mcp .
-docker run -p 8080:8080 parzley-mcp
-```
-
-The image listens on **`$PORT`** (default **8080** in the Dockerfile). Reverse-proxy to **`/mcp`** as needed.
+There is **no** root `Dockerfile` in this repo by default — [Railway](#railway-github-connected-deploy) uses **Nixpacks** so deploys stay simple. If you want a container for local or another host, add your own `Dockerfile` (e.g. `pip install .` then `python main.py --transport http --host 0.0.0.0`) and listen on **`$PORT`**.
 
 ### Railway (GitHub-connected deploy)
 
-If you link this repository to [Railway](https://railway.app/), Railway will typically detect the **`Dockerfile`** and build with Docker (your **`pyproject.toml`** is still used inside the image via `pip install .` — it does not conflict). Railway injects a **`PORT`** environment variable at runtime (often **8080** when public networking targets that port); the **`Dockerfile`** already binds to **`${PORT}`**, so the process matches Railway’s **Networking → port** setting without hardcoding. Configure your MCP client to use your HTTPS URL with the **`/mcp`** path (e.g. `https://<service>.up.railway.app/mcp` or your custom domain).
+This repo includes **`nixpacks.toml`**: Railway runs **`pip install .`** then starts **`python main.py --transport http --host 0.0.0.0`** (no root Dockerfile required). Railway sets the **`PORT`** environment variable (often **8080**); **`main.py`** reads **`PORT`** automatically so the process listens on the same port as **Networking** in the dashboard.
+
+Point your MCP client at **`https://<your-service>.up.railway.app/mcp`** (or your custom domain) — no port in the URL.
+
+If you previously deployed with a **Dockerfile** and now use Nixpacks, trigger a **fresh deploy** after pushing so Railway does not reuse an old Docker build cache.
+
+**502 / Bad Gateway:** Usually means nothing is listening on **`PORT`** or the process crashed. Check **Deploy logs** for tracebacks; confirm the start command matches **`nixpacks.toml`** or your **Service → Settings → Deploy → Start Command** override. Clients may probe **`/.well-known/oauth-*`**; focus on fixing **`POST /mcp`** first — those OAuth paths may 404 until your MCP stack implements them, but a healthy app should still respond on **`/mcp`**.
 
 ---
 
@@ -205,4 +204,5 @@ python -m unittest tests.test_smoke -v
 | Tools don't appear in Claude | Check the config file path, quit and fully reopen Claude Desktop |
 | `ModuleNotFoundError` | Run `pip install .` from the project root (Python 3.13+) |
 | Server crashes on start | Run `python main.py` in a terminal to see the error |
+| **502** on Railway / reverse proxy | Ensure **`PORT`** is set by the platform and **`main.py`** is running (see **Railway** above). Check deploy logs. |
 | File upload fails | Ensure the file is properly base64-encoded and `file_name` has the correct extension |

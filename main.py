@@ -14,10 +14,22 @@ Run (SSE — legacy, requires Cloudflare proxy OFF):
 """
 
 import argparse
+import os
 
 # Import the FastMCP instance — this also triggers all tool registrations
 from parzley_mcp.server import mcp
 import parzley_mcp.tools  # noqa: F401 — registers all @mcp.tool() decorators
+
+
+def _default_listen_port() -> int:
+    """Railway, Render, Fly, etc. set PORT; use it when present."""
+    raw = os.environ.get("PORT")
+    if raw:
+        try:
+            return int(raw)
+        except ValueError:
+            pass
+    return 8001
 
 
 def main() -> None:
@@ -35,8 +47,8 @@ def main() -> None:
     parser.add_argument(
         "--port",
         type=int,
-        default=8001,
-        help="Port for SSE/HTTP transport (default: 8001)",
+        default=_default_listen_port(),
+        help="Port for SSE/HTTP transport (default: $PORT if set, else 8001)",
     )
     parser.add_argument(
         "--host",
