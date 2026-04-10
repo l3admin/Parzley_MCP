@@ -26,6 +26,8 @@ uv sync
 
 Dependencies: `fastmcp`, `httpx` (declared in `pyproject.toml`).
 
+If you change **`pyproject.toml`** dependencies, run **`uv lock`** and commit the updated **`uv.lock`**. Hosts that run **`uv sync --locked`** (e.g. Railway Railpack) will fail until the lockfile matches.
+
 ---
 
 ## Connecting to Claude Desktop (local / stdio)
