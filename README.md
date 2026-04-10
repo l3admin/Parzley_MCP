@@ -77,26 +77,18 @@ python main.py --transport sse --port 8001
 
 ---
 
-### Docker (optional)
+### Railway (or any PaaS)
 
-There is **no** root `Dockerfile` in this repo by default — [Railway](#railway-github-connected-deploy) uses **Nixpacks** so deploys stay simple. If you want a container for local or another host, add your own `Dockerfile` (e.g. `pip install .` then `python main.py --transport http --host 0.0.0.0`) and listen on **`$PORT`**.
+Deploy is **not** configured in-repo — set this in your host’s UI (example for [Railway](https://railway.app/)):
 
-### Railway (GitHub-connected deploy)
+1. **Builder:** **Nixpacks** (or Railpack), **not** Dockerfile unless you add your own `Dockerfile`.
+2. **Install:** Let Nixpacks auto-detect `pyproject.toml`, or use a custom install step such as `python -m pip install .` from the repo root.
+3. **Start command:** `python main.py --transport http --host 0.0.0.0`
+4. **Port:** The platform sets **`PORT`** (e.g. 8080). **`main.py`** reads **`PORT`** from the environment so you do not need `--port` in the start command.
 
-This repo includes:
+MCP URL: `https://<your-app>/mcp` (HTTPS on the host; no port in the URL for a default HTTPS setup).
 
-- **`railway.toml`** — sets **`builder = "NIXPACKS"`** so Railway does **not** keep using **Dockerfile** after that file was removed (without this, deploy can fail at **“Build image”** because the dashboard still pointed at Docker).
-- **`nixpacks.toml`** — **`pip install .`** and the same start command as **`railway.toml`**.
-
-Railway sets the **`PORT`** environment variable (often **8080**); **`main.py`** reads **`PORT`** automatically so the process listens on the same port as **Networking** in the dashboard.
-
-Point your MCP client at **`https://<your-service>.up.railway.app/mcp`** (or your custom domain) — no port in the URL.
-
-After changing builders, push and **redeploy**. If a deploy still fails, open **Service → Settings** and confirm nothing overrides **`railway.toml`** in a broken way (config-as-code should win for new deploys).
-
-**502 / Bad Gateway:** Usually means nothing is listening on **`PORT`** or the process crashed. Check **Deploy logs** for tracebacks; confirm the start command matches **`railway.toml`** / **`nixpacks.toml`**. Clients may probe **`/.well-known/oauth-*`**; focus on **`POST /mcp`** first.
-
-**“Build image” failed** after removing Docker: almost always the service was still on the **Dockerfile** builder — **`railway.toml`** fixes that; you can also set **Build → Builder → Nixpacks** manually once.
+If deploy still says **“Build image”** or Docker, switch the service **off** Dockerfile builder in settings — this repo does not ship a `Dockerfile`.
 
 ---
 
@@ -211,5 +203,5 @@ python -m unittest tests.test_smoke -v
 | Tools don't appear in Claude | Check the config file path, quit and fully reopen Claude Desktop |
 | `ModuleNotFoundError` | Run `pip install .` from the project root (Python 3.13+) |
 | Server crashes on start | Run `python main.py` in a terminal to see the error |
-| **502** on Railway / reverse proxy | Ensure **`PORT`** is set by the platform and **`main.py`** is running (see **Railway** above). Check deploy logs. |
+| **502** on Railway / reverse proxy | Confirm **`main.py`** is running, **`PORT`** matches the platform, and the start command is correct (see **Railway** above). |
 | File upload fails | Ensure the file is properly base64-encoded and `file_name` has the correct extension |
