@@ -83,13 +83,20 @@ There is **no** root `Dockerfile` in this repo by default — [Railway](#railway
 
 ### Railway (GitHub-connected deploy)
 
-This repo includes **`nixpacks.toml`**: Railway runs **`pip install .`** then starts **`python main.py --transport http --host 0.0.0.0`** (no root Dockerfile required). Railway sets the **`PORT`** environment variable (often **8080**); **`main.py`** reads **`PORT`** automatically so the process listens on the same port as **Networking** in the dashboard.
+This repo includes:
+
+- **`railway.toml`** — sets **`builder = "NIXPACKS"`** so Railway does **not** keep using **Dockerfile** after that file was removed (without this, deploy can fail at **“Build image”** because the dashboard still pointed at Docker).
+- **`nixpacks.toml`** — **`pip install .`** and the same start command as **`railway.toml`**.
+
+Railway sets the **`PORT`** environment variable (often **8080**); **`main.py`** reads **`PORT`** automatically so the process listens on the same port as **Networking** in the dashboard.
 
 Point your MCP client at **`https://<your-service>.up.railway.app/mcp`** (or your custom domain) — no port in the URL.
 
-If you previously deployed with a **Dockerfile** and now use Nixpacks, trigger a **fresh deploy** after pushing so Railway does not reuse an old Docker build cache.
+After changing builders, push and **redeploy**. If a deploy still fails, open **Service → Settings** and confirm nothing overrides **`railway.toml`** in a broken way (config-as-code should win for new deploys).
 
-**502 / Bad Gateway:** Usually means nothing is listening on **`PORT`** or the process crashed. Check **Deploy logs** for tracebacks; confirm the start command matches **`nixpacks.toml`** or your **Service → Settings → Deploy → Start Command** override. Clients may probe **`/.well-known/oauth-*`**; focus on fixing **`POST /mcp`** first — those OAuth paths may 404 until your MCP stack implements them, but a healthy app should still respond on **`/mcp`**.
+**502 / Bad Gateway:** Usually means nothing is listening on **`PORT`** or the process crashed. Check **Deploy logs** for tracebacks; confirm the start command matches **`railway.toml`** / **`nixpacks.toml`**. Clients may probe **`/.well-known/oauth-*`**; focus on **`POST /mcp`** first.
+
+**“Build image” failed** after removing Docker: almost always the service was still on the **Dockerfile** builder — **`railway.toml`** fixes that; you can also set **Build → Builder → Nixpacks** manually once.
 
 ---
 
