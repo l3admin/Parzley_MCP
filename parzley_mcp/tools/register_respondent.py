@@ -24,8 +24,12 @@ async def register_respondent(
 
     {PREREQUISITE_START_SESSION}
 
-    Registration is **optional** for continuing in chat but **strongly recommended** so the user can add
-    name + **email** and access their data in the **Parzley web app**; see **Registration** below.
+    **When to call:** Only after **`session_shortcode`** (6-character) exists from **`parzley_message_turn`**.
+    The assistant should **already have invited** the user to register (session email + ask for name / email for
+    web access) per **Registration** (5-character path — when and how to invite) — do not silently skip that outreach.
+
+    Registration is **optional** for the **user** to complete (they may decline), but **asking** is **not**
+    optional for the assistant once `session_shortcode` exists. See **Registration** below.
 
     {REGISTRATION}
 
